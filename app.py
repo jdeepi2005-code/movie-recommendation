@@ -133,6 +133,10 @@ similarity = pickle.load(open("similarity.pkl", "rb"))
 st.sidebar.header("⚙️ Settings")
 num_recommendations = st.sidebar.slider("Number of recommendations", 3, 10, 5)
 
+# ================= SESSION STATE =================
+if "trailer_url" not in st.session_state:
+    st.session_state.trailer_url = None
+
 # ================= FUNCTIONS =================
 def recommend(movie, n):
     index = movies[movies['title'] == movie].index[0]
@@ -196,12 +200,19 @@ if st.button("🚀 Recommend"):
                 unsafe_allow_html=True
             )
 
-            st.caption(f"🎭 Genre: {omdb.get("Genre", "N/A")}")
-            st.caption(f"📅 Year: {omdb.get("Year", "N/A")}")
+            st.caption(f"🎭 Genre: {omdb.get('Genre', 'N/A')}")
+            st.caption(f"📅 Year: {omdb.get('Year', 'N/A')}")
 
+            # ================= WATCH TRAILER BUTTON =================
             if trailer:
-                st.video(trailer)
+                if st.button(f"🎬 Watch Trailer", key=f"trailer_{idx}"):
+                    st.session_state.trailer_url = trailer
             else:
                 st.caption("🎥 Trailer not available")
 
             st.markdown('</div>', unsafe_allow_html=True)
+
+# ================= PLAY TRAILER INSIDE APP =================
+if st.session_state.trailer_url:
+    st.subheader("🎥 Now Playing")
+    st.video(st.session_state.trailer_url)
