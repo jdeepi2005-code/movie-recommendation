@@ -123,10 +123,12 @@ def fetch_poster(movie_id):
 def fetch_trailer(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
     data = requests.get(url).json()
+
     for t in ["Trailer", "Teaser", "Clip"]:
         for video in data.get("results", []):
             if video["site"] == "YouTube" and video["type"] == t:
-                return f"https://www.youtube.com/watch?v={video['key']}"
+                # IMPORTANT: EMBED LINK (plays inside app)
+                return f"https://www.youtube.com/embed/{video['key']}"
     return None
 
 def fetch_watch_providers(movie_id, country_code):
@@ -202,10 +204,10 @@ if st.session_state.page == "Home":
                     if watch_link:
                         st.markdown(f'<a class="btn" href="{watch_link}" target="_blank">Watch Now</a>', unsafe_allow_html=True)
 
-                # Trailer
+                # Trailer (plays inside app)
                 trailer = fetch_trailer(movie.movie_id)
                 if trailer:
-                    st.markdown(f'<a class="btn-secondary" href="{trailer}" target="_blank">Watch Trailer</a>', unsafe_allow_html=True)
+                    st.video(trailer)
 
                 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -250,7 +252,7 @@ elif st.session_state.page == "Details":
             if watch_link:
                 st.markdown(f'<a class="btn" href="{watch_link}" target="_blank">Watch Now</a>', unsafe_allow_html=True)
 
-        # Trailer
+        # Trailer (inside app)
         if trailer:
             st.video(trailer)
 
