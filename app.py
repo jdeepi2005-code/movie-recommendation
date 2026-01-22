@@ -78,42 +78,6 @@ st.markdown(f"""
     background-color: {sidebar};
     color: {widget_text};
 }}
-
-[data-testid="stSidebar"] .css-1d391kg, 
-[data-testid="stSidebar"] .css-1avcm0n, 
-[data-testid="stSidebar"] .css-1j8o68u {{
-    color: {widget_text};
-}}
-
-.css-1lcbmhc {{
-    color: {widget_text};
-}}
-
-.css-1v3fvcr {{
-    color: {widget_text};
-}}
-
-.css-1tbi4j3 {{
-    color: {widget_text};
-}}
-
-.css-1q8dd3e {{
-    color: {widget_text};
-}}
-
-.css-1d391kg {{
-    color: {widget_text};
-}}
-
-.css-1outpf7 {{
-    background-color: {widget_bg};
-    color: {widget_text};
-}}
-
-.css-1y4p8pa {{
-    background-color: {widget_bg};
-    color: {widget_text};
-}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,6 +92,13 @@ st.markdown("""
 # ================= LOAD DATA =================
 movies = pickle.load(open("movie_list.pkl", "rb"))
 similarity = pickle.load(open("similarity.pkl", "rb"))
+
+# ================= SESSION STATE =================
+if "recommendations" not in st.session_state:
+    st.session_state.recommendations = []
+
+if "trailer_url" not in st.session_state:
+    st.session_state.trailer_url = None
 
 # ================= SIDEBAR =================
 st.sidebar.header("⚙️ Settings")
@@ -155,9 +126,10 @@ def fetch_trailer(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
     data = requests.get(url).json()
 
-    for video in data.get("results", []):
-        if video["site"] == "YouTube" and video["type"] == "Trailer":
-            return f"https://www.youtube.com/watch?v={video['key']}"
+    for t in ["Trailer", "Teaser", "Clip"]:
+        for video in data.get("results", []):
+            if video["site"] == "YouTube" and video["type"] == t:
+                return f"https://www.youtube.com/watch?v={video['key']}"
     return None
 
 def fetch_omdb(title):
@@ -173,12 +145,14 @@ st.success(f"🎥 You selected: **{selected_movie}**")
 # ================= RECOMMEND =================
 if st.button("🚀 Recommend"):
     with st.spinner("Finding similar movies..."):
-        recommendations = recommend(selected_movie, num_recommendations)
+        st.session_state.recommendations = recommend(selected_movie, num_recommendations)
 
+# ================= SHOW RECOMMENDATIONS =================
+if st.session_state.recommendations:
     st.subheader("🌟 Recommended Movies")
-
     cols = st.columns(5)
-    for idx, rec in enumerate(recommendations):
+
+    for idx, rec in enumerate(st.session_state.recommendations):
         movie = movies.iloc[rec[0]]
         poster = fetch_poster(movie.movie_id)
         trailer = fetch_trailer(movie.movie_id)
@@ -199,13 +173,16 @@ if st.button("🚀 Recommend"):
             st.caption(f"🎭 Genre: {omdb.get('Genre', 'N/A')}")
             st.caption(f"📅 Year: {omdb.get('Year', 'N/A')}")
 
-            # ✅ WATCH TRAILER BUTTON
+            # Watch Trailer Button
             if trailer:
-                st.markdown(
-                    f'<a href="{trailer}" target="_blank"><button style="background-color:#ff512f;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;">🎬 Watch Trailer</button></a>',
-                    unsafe_allow_html=True
-                )
+                if st.button(f"🎬 Watch Trailer", key=f"trailer_{idx}"):
+                    st.session_state.trailer_url = trailer
             else:
                 st.caption("🎥 Trailer not available")
 
             st.markdown('</div>', unsafe_allow_html=True)
+
+# ================= PLAY TRAILER INSIDE APP =================
+if st.session_state.trailer_url:
+    st.subheader("🎥 Now Playing")
+    st.video(st.session_state.trailer_url)
