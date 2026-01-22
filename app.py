@@ -14,8 +14,6 @@ st.set_page_config(
 
 # ================= LIGHT THEME ONLY =================
 bg = "#f7f7f7"
-card = "#ffffff"
-sidebar = "#ffffff"
 text = "#111827"
 
 st.markdown(f"""
@@ -46,65 +44,68 @@ st.markdown(f"""
     margin-top: 5px;
 }}
 
-/* ---------- Movie Card ---------- */
-.movie-card {{
-    background-color: {card};
-    border-radius: 16px;
-    padding: 12px;
-    text-align: center;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.10);
+/* ---------- Netflix Style Grid ---------- */
+.grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+    margin-top: 20px;
+}}
+
+.card {{
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
     transition: transform 0.2s, box-shadow 0.2s;
-    min-height: 520px;
 }}
 
-.movie-card:hover {{
-    transform: translateY(-5px);
-    box-shadow: 0 15px 35px rgba(0,0,0,0.18);
+.card:hover {{
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.2);
 }}
 
-.movie-title {{
+.card img {{
+    width: 100%;
+    height: 330px;
+    object-fit: cover;
+}}
+
+.card-body {{
+    padding: 12px;
+}}
+
+.card-title {{
     font-weight: 800;
-    font-size: 18px;
-    margin-top: 10px;
+    font-size: 16px;
+    margin: 8px 0 4px 0;
+}}
+
+.card-meta {{
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 8px;
 }}
 
 .imdb {{
     background-color: #f5c518;
     color: black;
-    padding: 5px 12px;
+    padding: 4px 10px;
     border-radius: 20px;
     font-weight: bold;
     display: inline-block;
-    margin-top: 6px;
-}}
-
-.meta {{
-    font-size: 13px;
-    color: #6b7280;
-    margin-top: 6px;
+    font-size: 12px;
 }}
 
 .btn {{
     margin-top: 8px;
+    width: 100%;
 }}
 
 [data-testid="stSidebar"] {{
-    background-color: {sidebar};
+    background-color: #ffffff;
     padding: 20px;
     border-radius: 12px;
-}}
-
-/* ---------- Button Styles ---------- */
-.stButton>button {{
-    background: linear-gradient(90deg, #ff512f, #dd2476);
-    color: white;
-    border-radius: 10px;
-    padding: 8px 12px;
-    border: none;
-}}
-
-.stButton>button:hover {{
-    opacity: 0.9;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -113,7 +114,7 @@ st.markdown(f"""
 st.markdown("""
 <div class="header">
     <h1>🎬 Movie Recommendation System</h1>
-    <p>Find movies similar to your favorite one</p>
+    <p>Netflix Style Grid UI</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -166,7 +167,7 @@ def recommend(movie, n):
     return movie_list
 
 def fetch_poster(movie_id):
-    url = f"https://image.tmdb.org/t/p/w500"
+    url = "https://image.tmdb.org/t/p/w500"
     data = requests.get(f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}").json()
     if data.get("poster_path"):
         return url + data["poster_path"]
@@ -199,17 +200,17 @@ def fetch_movie_details(movie_id):
 
 # ================= HOME PAGE =================
 if st.session_state.page == "Home":
-    st.write("Welcome to the Movie Recommendation System!")
-    st.write("Use the sidebar to navigate to Recommendations or Movie Details.")
+    st.write("Welcome to the Netflix Style Movie Recommender!")
+    st.write("Use the sidebar to navigate.")
 
 # ================= RECOMMENDATIONS PAGE =================
 if st.session_state.page == "Recommendations":
     st.sidebar.header("⚙️ Settings")
-    num_recommendations = st.sidebar.slider("Number of recommendations", 4, 12, 8)
+    num_recommendations = st.sidebar.slider("Number of recommendations", 8, 20, 12)
     country = st.sidebar.selectbox("🌍 Country", ["IN", "US", "UK", "CA", "AU"])
 
-    st.subheader("🎞️ Selected Movie")
-    st.success(f"🎥 {selected_movie}")
+    st.subheader("🎞️ Recommended Movies")
+    st.write("Click on Details to see full movie info.")
 
     if st.button("🚀 Recommend"):
         with st.spinner("Finding similar movies..."):
@@ -217,14 +218,15 @@ if st.session_state.page == "Recommendations":
             st.session_state.page_num = 0
 
     # Pagination
-    per_page = 4
+    per_page = 8
     start = st.session_state.page_num * per_page
     end = start + per_page
 
     if st.session_state.recommendations:
-        st.subheader("🌟 Recommended Movies")
         rec_page = st.session_state.recommendations[start:end]
-        cols = st.columns(4)
+
+        # Netflix style grid
+        st.markdown('<div class="grid">', unsafe_allow_html=True)
 
         for idx, rec in enumerate(rec_page):
             movie = movies.iloc[rec[0]]
@@ -233,55 +235,51 @@ if st.session_state.page == "Recommendations":
             providers = fetch_watch_providers(movie.movie_id, country)
             omdb = fetch_omdb(movie.title)
 
-            with cols[idx]:
-                st.markdown('<div class="movie-card">', unsafe_allow_html=True)
+            st.markdown('<div class="card">', unsafe_allow_html=True)
 
-                if poster:
-                    st.image(poster, use_container_width=True)
+            if poster:
+                st.image(poster)
 
-                st.markdown(f'<div class="movie-title">{movie.title}</div>', unsafe_allow_html=True)
-                st.markdown(
-                    f'<div class="imdb">⭐ IMDb {omdb.get("imdbRating", "N/A")}</div>',
-                    unsafe_allow_html=True
-                )
+            st.markdown(f'<div class="card-body">', unsafe_allow_html=True)
+            st.markdown(f'<div class="card-title">{movie.title}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="imdb">⭐ IMDb {omdb.get("imdbRating", "N/A")}</div>',
+                unsafe_allow_html=True
+            )
+            st.markdown(f'<div class="card-meta">{omdb.get("Genre", "N/A")} • {omdb.get("Year", "N/A")}</div>', unsafe_allow_html=True)
 
-                st.markdown(f'<div class="meta">🎭 {omdb.get("Genre", "N/A")} • 📅 {omdb.get("Year", "N/A")}</div>', unsafe_allow_html=True)
-                st.caption(f"📖 {omdb.get('Plot', 'N/A')}")
-
-                # Streaming Only (with Logos)
-                if providers:
-                    flatrate = providers.get("flatrate", [])
-                    if flatrate:
-                        st.caption("📺 Streaming On:")
-                        cols_logo = st.columns(len(flatrate))
-                        for i, p in enumerate(flatrate):
-                            logo_url = "https://image.tmdb.org/t/p/original" + p["logo_path"]
-                            with cols_logo[i]:
-                                st.image(logo_url, width=50)
-                                st.caption(p["provider_name"])
-
-                        watch_link = providers.get("link")
-                        if watch_link:
-                            st.markdown(f"[👉 Watch Now]({watch_link})", unsafe_allow_html=True)
-                    else:
-                        st.caption("📌 Streaming not available in this country")
+            # Streaming Only (with Logos)
+            if providers:
+                flatrate = providers.get("flatrate", [])
+                if flatrate:
+                    cols_logo = st.columns(len(flatrate))
+                    for i, p in enumerate(flatrate):
+                        logo_url = "https://image.tmdb.org/t/p/original" + p["logo_path"]
+                        with cols_logo[i]:
+                            st.image(logo_url, width=50)
+                    watch_link = providers.get("link")
+                    if watch_link:
+                        st.markdown(f"[👉 Watch Now]({watch_link})", unsafe_allow_html=True)
                 else:
-                    st.caption("📌 Not available in this country")
+                    st.markdown("📌 Streaming not available in this country")
 
-                # Trailer
-                if trailer:
-                    if st.button(f"🎬 Watch Trailer", key=f"trailer_{idx}"):
-                        st.session_state.trailer_url = trailer
-                else:
-                    st.caption("🎥 Trailer not available")
+            # Buttons
+            if st.button("🎬 Trailer", key=f"trailer_{idx}"):
+                st.session_state.trailer_url = trailer
 
-                # Favorites
-                if st.button("❤️ Add to Favorites", key=f"fav_{idx}"):
-                    st.session_state.favorites.append(movie.title)
+            if st.button("📝 Details", key=f"details_{idx}"):
+                st.session_state.page = "Movie Details"
+                st.session_state.selected_movie_details = movie.title
 
-                st.markdown('</div>', unsafe_allow_html=True)
+            if st.button("❤️ Favorite", key=f"fav_{idx}"):
+                st.session_state.favorites.append(movie.title)
 
-        # Pagination Buttons
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Pagination buttons
         col_prev, col_next = st.columns(2)
         with col_prev:
             if st.button("⬅ Previous") and st.session_state.page_num > 0:
@@ -294,7 +292,9 @@ if st.session_state.page == "Recommendations":
 if st.session_state.page == "Movie Details":
     st.subheader("🎬 Movie Details")
 
-    movie_data = fetch_movie_details(movies[movies['title'] == selected_movie].iloc[0].movie_id)
+    movie_title = st.session_state.get("selected_movie_details", selected_movie)
+    movie_id = movies[movies['title'] == movie_title].iloc[0].movie_id
+    movie_data = fetch_movie_details(movie_id)
 
     poster = "https://image.tmdb.org/t/p/w500" + movie_data.get("poster_path", "")
     st.image(poster, width=250)
@@ -317,14 +317,14 @@ if st.session_state.page == "Movie Details":
     review = st.text_area("Write your review", key="review_area")
 
     if st.button("Submit Review"):
-        st.session_state.ratings[selected_movie] = rating
-        st.session_state.reviews[selected_movie] = review
+        st.session_state.ratings[movie_title] = rating
+        st.session_state.reviews[movie_title] = review
         st.success("Review added!")
 
-    if selected_movie in st.session_state.reviews:
+    if movie_title in st.session_state.reviews:
         st.markdown("### 💬 Your Review")
-        st.write(f"⭐ **Rating:** {st.session_state.ratings[selected_movie]}")
-        st.write(f"📝 **Review:** {st.session_state.reviews[selected_movie]}")
+        st.write(f"⭐ **Rating:** {st.session_state.ratings[movie_title]}")
+        st.write(f"📝 **Review:** {st.session_state.reviews[movie_title]}")
 
 # ================= FAVORITES PAGE =================
 if st.session_state.page == "Favorites":
