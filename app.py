@@ -1,6 +1,10 @@
 import streamlit as st
 import pickle
-import pandas as pd
+import requests
+
+# ================= API KEYS =================
+TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
+OMDB_API_KEY = "8bd965b9"
 
 # ================= PAGE CONFIG =================
 st.set_page_config(
@@ -8,54 +12,48 @@ st.set_page_config(
     layout="wide"
 )
 
-# ================= STRONG UI (GUARANTEED VISIBLE) =================
+# ================= STRONG UI =================
 st.markdown("""
 <style>
 .stApp {
-    background-color: #0f172a;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: white;
 }
 
-.header-box {
+.header {
     background: linear-gradient(90deg, #ff512f, #dd2476);
     padding: 25px;
     border-radius: 15px;
     text-align: center;
-    margin-bottom: 25px;
+    margin-bottom: 30px;
 }
 
-.header-box h1 {
+.header h1 {
+    font-size: 40px;
     color: white;
-    font-size: 42px;
-}
-
-.header-box p {
-    color: white;
-    font-size: 18px;
 }
 
 .movie-card {
     background-color: #111827;
-    border: 2px solid #374151;
-    border-radius: 14px;
-    padding: 18px;
+    border-radius: 16px;
+    padding: 12px;
     text-align: center;
-    margin-bottom: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+    transition: transform 0.3s;
 }
 
-.movie-title {
-    font-size: 18px;
-    font-weight: bold;
-    color: #f9fafb;
+.movie-card:hover {
+    transform: scale(1.05);
 }
 
-.score {
-    background-color: #facc15;
+.imdb {
+    background-color: #f5c518;
     color: black;
-    padding: 6px 14px;
+    padding: 5px 12px;
     border-radius: 20px;
     font-weight: bold;
-    margin-top: 10px;
     display: inline-block;
+    margin-top: 6px;
 }
 
 [data-testid="stSidebar"] {
@@ -66,7 +64,7 @@ st.markdown("""
 
 # ================= HEADER =================
 st.markdown("""
-<div class="header-box">
+<div class="header">
     <h1>🎬 Movie Recommendation System</h1>
     <p>Find movies similar to your favorite one</p>
 </div>
@@ -78,20 +76,29 @@ similarity = pickle.load(open("similarity.pkl", "rb"))
 
 # ================= SIDEBAR =================
 st.sidebar.header("⚙️ Settings")
-num_recommendations = st.sidebar.slider("🎯 Number of recommendations", 3, 10, 5)
+num_recommendations = st.sidebar.slider("Number of recommendations", 3, 10, 5)
 
-# ================= RECOMMEND FUNCTION =================
+# ================= FUNCTIONS =================
 def recommend(movie, n):
     index = movies[movies['title'] == movie].index[0]
     distances = similarity[index]
-
     movie_list = sorted(
         list(enumerate(distances)),
         reverse=True,
         key=lambda x: x[1]
     )[1:n+1]
-
     return movie_list
+
+def fetch_poster(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
+    data = requests.get(url).json()
+    if data.get("poster_path"):
+        return "https://image.tmdb.org/t/p/w500" + data["poster_path"]
+    return None
+
+def fetch_omdb(title):
+    url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
+    return requests.get(url).json()
 
 # ================= INPUT =================
 st.subheader("🔍 Search Movie")
@@ -104,25 +111,32 @@ final_movie = movie_input if movie_input in movies['title'].values else selected
 st.success(f"🎥 You selected: **{final_movie}**")
 
 # ================= RECOMMEND =================
-if st.button("🚀 Recommend Movies"):
+if st.button("🚀 Recommend"):
     with st.spinner("Finding similar movies..."):
         recommendations = recommend(final_movie, num_recommendations)
 
-    st.markdown("## 🌟 Recommended Movies")
+    st.subheader("🌟 Recommended Movies")
 
-    cols = st.columns(4)
+    cols = st.columns(5)
     for idx, rec in enumerate(recommendations):
-        with cols[idx % 4]:
+        movie = movies.iloc[rec[0]]
+        poster = fetch_poster(movie.movie_id)
+        omdb = fetch_omdb(movie.title)
+
+        with cols[idx % 5]:
             st.markdown('<div class="movie-card">', unsafe_allow_html=True)
 
+            if poster:
+                st.image(poster, use_container_width=True)
+
+            st.markdown(f"**{movie.title}**")
+
             st.markdown(
-                f'<div class="movie-title">🎬 {movies.iloc[rec[0]].title}</div>',
+                f'<div class="imdb">⭐ IMDb {omdb.get("imdbRating", "N/A")}</div>',
                 unsafe_allow_html=True
             )
 
-            st.markdown(
-                f'<div class="score">⭐ Similarity: {round(rec[1], 2)}</div>',
-                unsafe_allow_html=True
-            )
+            st.caption(f"🎭 Genre: {omdb.get('Genre', 'N/A')}")
+            st.caption(f"📅 Year: {omdb.get('Year', 'N/A')}")
 
             st.markdown('</div>', unsafe_allow_html=True)
