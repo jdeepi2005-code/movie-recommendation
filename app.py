@@ -12,14 +12,14 @@ st.set_page_config(
     layout="wide"
 )
 
-# ================= THEME TOGGLE =================
+# ================= THEME =================
 theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
 
 # ================= CSS =================
 if theme == "Dark":
-    bg = "#0f172a"
+    bg = "#0b1220"
     card = "#111827"
-    text = "white"
+    text = "#ffffff"
     sidebar = "#0b1220"
 else:
     bg = "#f8fafc"
@@ -29,9 +29,12 @@ else:
 
 st.markdown(f"""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
 body {{
     background: {bg};
     color: {text};
+    font-family: 'Roboto', sans-serif;
 }}
 
 .movie-card {{
@@ -41,11 +44,17 @@ body {{
     text-align: center;
     box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     transition: transform 0.2s;
-    min-height: 410px;
+    min-height: 430px;
 }}
 
 .movie-card:hover {{
     transform: translateY(-5px);
+}}
+
+.movie-title {{
+    font-weight: 800;
+    font-size: 18px;
+    margin-top: 8px;
 }}
 
 .btn {{
@@ -56,18 +65,7 @@ body {{
     font-weight: 800;
     border: none;
     cursor: pointer;
-    margin-right: 10px;
-}}
-
-.btn-secondary {{
-    padding: 10px 15px;
-    border-radius: 8px;
-    background: #3b82f6;
-    color: white;
-    font-weight: 800;
-    border: none;
-    cursor: pointer;
-    margin-right: 10px;
+    margin: 5px 5px;
 }}
 
 .navbar {{
@@ -82,6 +80,7 @@ body {{
     font-size: 22px;
     font-weight: 900;
 }}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -92,9 +91,6 @@ similarity = pickle.load(open("similarity.pkl", "rb"))
 # ================= SESSION STATE =================
 if "favorites" not in st.session_state:
     st.session_state.favorites = []
-
-if "reviews" not in st.session_state:
-    st.session_state.reviews = {}
 
 if "page" not in st.session_state:
     st.session_state.page = "Home"
@@ -127,7 +123,6 @@ def fetch_trailer(movie_id):
     for t in ["Trailer", "Teaser", "Clip"]:
         for video in data.get("results", []):
             if video["site"] == "YouTube" and video["type"] == t:
-                # IMPORTANT: EMBED LINK (plays inside app)
                 return f"https://www.youtube.com/embed/{video['key']}"
     return None
 
@@ -141,12 +136,6 @@ def fetch_omdb(title):
     url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
     return requests.get(url).json()
 
-def fetch_cast(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}/credits?api_key={TMDB_API_KEY}"
-    data = requests.get(url).json()
-    cast = data.get("cast", [])[:6]
-    return [c["name"] for c in cast]
-
 # ================= NAVBAR =================
 st.markdown("""
 <div class="navbar">
@@ -155,8 +144,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ================= SIDEBAR =================
-st.sidebar.header("🎬 Movie List")
-st.session_state.selected_movie = st.sidebar.selectbox("Select Movie", movies['title'].values)
+st.sidebar.header("🎬 Select Movie")
+st.session_state.selected_movie = st.sidebar.selectbox("Movie List", movies['title'].values)
 
 st.sidebar.markdown("---")
 st.sidebar.header("⚙️ Settings")
@@ -180,18 +169,26 @@ if st.session_state.page == "Home":
             movie = movies.iloc[rec[0]]
             poster = fetch_poster(movie.movie_id)
             omdb = fetch_omdb(movie.title)
+            providers = fetch_watch_providers(movie.movie_id, country)
 
             with cols[idx % 4]:
                 st.markdown('<div class="movie-card">', unsafe_allow_html=True)
+
                 if poster:
                     st.image(poster, use_container_width=True)
 
-                st.markdown(f"**{movie.title}**")
-                st.markdown(f'<div class="imdb">⭐ {omdb.get("imdbRating","N/A")}</div>', unsafe_allow_html=True)
-                st.caption(f"📖 {omdb.get("Plot","N/A")[:120]}...")
+                st.markdown(f'<div class="movie-title">{movie.title}</div>', unsafe_allow_html=True)
+                st.markdown(f"⭐ {omdb.get('imdbRating','N/A')}")
+
+                # Trailer Button
+                trailer = fetch_trailer(movie.movie_id)
+                if trailer:
+                    if st.button("🎬 Watch Trailer", key=f"trailer_{idx}"):
+                        st.session_state.trailer_url = trailer
+                else:
+                    st.write("Trailer not available")
 
                 # Streaming Providers
-                providers = fetch_watch_providers(movie.movie_id, country)
                 flatrate = providers.get("flatrate", [])
                 if flatrate:
                     logos = ""
@@ -204,11 +201,6 @@ if st.session_state.page == "Home":
                     if watch_link:
                         st.markdown(f'<a class="btn" href="{watch_link}" target="_blank">Watch Now</a>', unsafe_allow_html=True)
 
-                # Trailer (plays inside app)
-                trailer = fetch_trailer(movie.movie_id)
-                if trailer:
-                    st.video(trailer)
-
                 st.markdown('</div>', unsafe_allow_html=True)
 
 # ================= DETAILS PAGE =================
@@ -219,7 +211,6 @@ elif st.session_state.page == "Details":
 
     poster = fetch_poster(movie_id)
     omdb = fetch_omdb(st.session_state.selected_movie)
-    cast = fetch_cast(movie_id)
     trailer = fetch_trailer(movie_id)
     providers = fetch_watch_providers(movie_id, country)
 
@@ -235,10 +226,12 @@ elif st.session_state.page == "Details":
         st.markdown(f"🎭 Genre: {omdb.get('Genre','N/A')}")
         st.markdown(f"📖 Synopsis: {omdb.get('Plot','N/A')}")
 
-        st.markdown("### Cast")
-        st.write(", ".join(cast))
+        # Trailer Button
+        if trailer:
+            if st.button("🎬 Watch Trailer"):
+                st.session_state.trailer_url = trailer
 
-        # Watch Providers
+        # Streaming Providers
         flatrate = providers.get("flatrate", [])
         if flatrate:
             st.markdown("### Streaming Platforms")
@@ -252,14 +245,14 @@ elif st.session_state.page == "Details":
             if watch_link:
                 st.markdown(f'<a class="btn" href="{watch_link}" target="_blank">Watch Now</a>', unsafe_allow_html=True)
 
-        # Trailer (inside app)
-        if trailer:
-            st.video(trailer)
+# ================= TRAILER MODAL (PLAY INSIDE APP) =================
+if st.session_state.trailer_url:
+    st.subheader("🎥 Trailer")
+    st.video(st.session_state.trailer_url)
 
 # ================= FAVORITES PAGE =================
 elif st.session_state.page == "Favorites":
     st.subheader("❤️ Favorites")
-
     if st.session_state.favorites:
         for m in st.session_state.favorites:
             st.write(m)
