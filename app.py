@@ -150,3 +150,36 @@ st.success(f"🎥 Selected movie: **{final_movie}**")
 
 # ================= RECOMMEND =================
 if st.button("🚀 Recommend"):
+    with st.spinner("Analyzing similarities..."):
+        recommendations = recommend(final_movie, num_recommendations)
+
+    st.markdown("## 🌟 Recommended Movies")
+
+    cols = st.columns(5)
+    for idx, rec in enumerate(recommendations):
+        movie_data = movies.iloc[rec[0]]
+
+        with cols[idx % 5]:
+            poster = fetch_poster(movie_data.movie_id)
+            omdb = fetch_omdb(movie_data.title)
+
+            st.markdown('<div class="movie-card">', unsafe_allow_html=True)
+
+            if poster:
+                st.image(poster, use_container_width=True)
+
+            st.markdown(f"**{movie_data.title}**")
+
+            imdb = omdb.get("imdbRating", "N/A")
+            st.markdown(
+                f'<div class="rating-badge">⭐ IMDb {imdb}</div>',
+                unsafe_allow_html=True
+            )
+
+            st.caption("🧠 Recommended due to similar storyline & genre")
+
+            if st.button("❤️ Add to Favorites", key=movie_data.title):
+                if movie_data.title not in st.session_state.favorites:
+                    st.session_state.favorites.append(movie_data.title)
+
+            st.markdown("</div>", unsafe_allow_html=True)
