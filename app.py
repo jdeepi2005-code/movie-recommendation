@@ -78,6 +78,42 @@ st.markdown(f"""
     background-color: {sidebar};
     color: {widget_text};
 }}
+
+[data-testid="stSidebar"] .css-1d391kg, 
+[data-testid="stSidebar"] .css-1avcm0n, 
+[data-testid="stSidebar"] .css-1j8o68u {{
+    color: {widget_text};
+}}
+
+.css-1lcbmhc {{
+    color: {widget_text};
+}}
+
+.css-1v3fvcr {{
+    color: {widget_text};
+}}
+
+.css-1tbi4j3 {{
+    color: {widget_text};
+}}
+
+.css-1q8dd3e {{
+    color: {widget_text};
+}}
+
+.css-1d391kg {{
+    color: {widget_text};
+}}
+
+.css-1outpf7 {{
+    background-color: {widget_bg};
+    color: {widget_text};
+}}
+
+.css-1y4p8pa {{
+    background-color: {widget_bg};
+    color: {widget_text};
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -96,10 +132,6 @@ similarity = pickle.load(open("similarity.pkl", "rb"))
 # ================= SIDEBAR =================
 st.sidebar.header("⚙️ Settings")
 num_recommendations = st.sidebar.slider("Number of recommendations", 3, 10, 5)
-
-# ================= SESSION STATE =================
-if "trailer_url" not in st.session_state:
-    st.session_state.trailer_url = None
 
 # ================= FUNCTIONS =================
 def recommend(movie, n):
@@ -123,12 +155,9 @@ def fetch_trailer(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
     data = requests.get(url).json()
 
-    # choose best available type
-    for t in ["Trailer", "Teaser", "Clip"]:
-        for video in data.get("results", []):
-            if video["site"] == "YouTube" and video["type"] == t:
-                # return embed url
-                return f"https://www.youtube.com/embed/{video['key']}"
+    for video in data.get("results", []):
+        if video["site"] == "YouTube" and video["type"] == "Trailer":
+            return f"https://www.youtube.com/watch?v={video['key']}"
     return None
 
 def fetch_omdb(title):
@@ -170,15 +199,13 @@ if st.button("🚀 Recommend"):
             st.caption(f"🎭 Genre: {omdb.get('Genre', 'N/A')}")
             st.caption(f"📅 Year: {omdb.get('Year', 'N/A')}")
 
+            # ✅ WATCH TRAILER BUTTON
             if trailer:
-                if st.button(f"🎬 Watch Trailer", key=f"trailer_{idx}"):
-                    st.session_state.trailer_url = trailer
+                st.markdown(
+                    f'<a href="{trailer}" target="_blank"><button style="background-color:#ff512f;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;">🎬 Watch Trailer</button></a>',
+                    unsafe_allow_html=True
+                )
             else:
                 st.caption("🎥 Trailer not available")
 
             st.markdown('</div>', unsafe_allow_html=True)
-
-# ================= PLAY TRAILER INSIDE APP =================
-if st.session_state.trailer_url:
-    st.subheader("🎥 Now Playing")
-    st.video(st.session_state.trailer_url)
