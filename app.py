@@ -21,11 +21,15 @@ if theme == "Dark":
     card = "#111827"
     sidebar = "#020617"
     text = "white"
+    widget_text = "white"
+    widget_bg = "#1f2937"
 else:
     bg = "linear-gradient(135deg, #fdfbfb, #ebedee)"
     card = "#ffffff"
     sidebar = "#f1f5f9"
     text = "#111827"
+    widget_text = "#111827"
+    widget_bg = "#ffffff"
 
 st.markdown(f"""
 <style>
@@ -72,6 +76,43 @@ st.markdown(f"""
 
 [data-testid="stSidebar"] {{
     background-color: {sidebar};
+    color: {widget_text};
+}}
+
+[data-testid="stSidebar"] .css-1d391kg, 
+[data-testid="stSidebar"] .css-1avcm0n, 
+[data-testid="stSidebar"] .css-1j8o68u {{
+    color: {widget_text};
+}}
+
+.css-1lcbmhc {{
+    color: {widget_text};
+}}
+
+.css-1v3fvcr {{
+    color: {widget_text};
+}}
+
+.css-1tbi4j3 {{
+    color: {widget_text};
+}}
+
+.css-1q8dd3e {{
+    color: {widget_text};
+}}
+
+.css-1d391kg {{
+    color: {widget_text};
+}}
+
+.css-1outpf7 {{
+    background-color: {widget_bg};
+    color: {widget_text};
+}}
+
+.css-1y4p8pa {{
+    background-color: {widget_bg};
+    color: {widget_text};
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -110,11 +151,20 @@ def fetch_poster(movie_id):
         return "https://image.tmdb.org/t/p/w500" + data["poster_path"]
     return None
 
+def fetch_trailer(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
+    data = requests.get(url).json()
+
+    for video in data.get("results", []):
+        if video["site"] == "YouTube" and video["type"] == "Trailer":
+            return f"https://www.youtube.com/watch?v={video['key']}"
+    return None
+
 def fetch_omdb(title):
     url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
     return requests.get(url).json()
 
-# ================= MOVIE SELECTION (ONLY LIST) =================
+# ================= MOVIE SELECTION =================
 st.subheader("🎞️ Select a Movie")
 selected_movie = st.selectbox("Choose a movie", movies['title'].values)
 
@@ -131,6 +181,7 @@ if st.button("🚀 Recommend"):
     for idx, rec in enumerate(recommendations):
         movie = movies.iloc[rec[0]]
         poster = fetch_poster(movie.movie_id)
+        trailer = fetch_trailer(movie.movie_id)
         omdb = fetch_omdb(movie.title)
 
         with cols[idx % 5]:
@@ -145,7 +196,12 @@ if st.button("🚀 Recommend"):
                 unsafe_allow_html=True
             )
 
-            st.caption(f"🎭 Genre: {omdb.get('Genre', 'N/A')}")
-            st.caption(f"📅 Year: {omdb.get('Year', 'N/A')}")
+            st.caption(f"🎭 Genre: {omdb.get("Genre", "N/A")}")
+            st.caption(f"📅 Year: {omdb.get("Year", "N/A")}")
+
+            if trailer:
+                st.video(trailer)
+            else:
+                st.caption("🎥 Trailer not available")
 
             st.markdown('</div>', unsafe_allow_html=True)
