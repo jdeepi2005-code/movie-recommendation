@@ -21,13 +21,13 @@ if "page" not in st.session_state:
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(to right, #fdfbfb, #ebedee);
+    background: linear-gradient(to right, #8e2de2, #4a00e0); /* Purple gradient */
 }
 
 .top-nav {
     display: flex;
     justify-content: space-around;
-    background: #111827;
+    background: #4b0082; /* Dark purple nav */
     padding: 12px;
     border-radius: 12px;
     margin-bottom: 25px;
@@ -39,6 +39,7 @@ st.markdown("""
     color: white;
     font-size: 18px;
     cursor: pointer;
+    font-weight: bold;
 }
 
 .movie-card {
@@ -47,6 +48,7 @@ st.markdown("""
     padding: 12px;
     box-shadow: 0 8px 20px rgba(0,0,0,0.15);
     text-align: center;
+    margin-bottom: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
