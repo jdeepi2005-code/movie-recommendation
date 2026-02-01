@@ -7,10 +7,7 @@ TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
 OMDB_API_KEY = "8bd965b9"
 
 # ================= PAGE CONFIG =================
-st.set_page_config(
-    page_title="Movie Recommendation System",
-    layout="wide"
-)
+st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 
 # ================= THEME TOGGLE =================
 theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
@@ -18,41 +15,21 @@ theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
 if theme == "Dark":
     st.markdown("""
     <style>
-    .stApp {
-        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-        color: white;
-    }
-    .movie-card {
-        background-color: #111827;
-        border-radius: 16px;
-        padding: 12px;
-        text-align: center;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.7);
-    }
+    .stApp { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); color: white; }
+    .movie-card { background:#111827; padding:12px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.7); }
     </style>
     """, unsafe_allow_html=True)
 else:
     st.markdown("""
     <style>
-    .stApp {
-        background: #f5f7fb;
-        color: black;
-    }
-    .movie-card {
-        background-color: white;
-        border-radius: 16px;
-        padding: 12px;
-        text-align: center;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    }
+    .stApp { background:#f5f7fb; color:black; }
+    .movie-card { background:white; padding:12px; border-radius:15px; box-shadow:0 8px 20px rgba(0,0,0,0.15); }
     </style>
     """, unsafe_allow_html=True)
 
 # ================= HEADER =================
-st.markdown("""
-<h1 style='text-align:center;'>🎬 Movie Recommendation System</h1>
-<p style='text-align:center;'>Machine Learning Based Movie Suggestions</p>
-""", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;'>ML-Based Personalized Movie Suggestions</p>", unsafe_allow_html=True)
 
 # ================= LOAD DATA =================
 movies = pickle.load(open("movie_list.pkl", "rb"))
@@ -66,28 +43,35 @@ num_recommendations = st.sidebar.slider("Number of Recommendations", 3, 10, 5)
 def recommend(movie, n):
     index = movies[movies['title'] == movie].index[0]
     distances = similarity[index]
-    movie_list = sorted(
-        list(enumerate(distances)),
-        reverse=True,
-        key=lambda x: x[1]
-    )[1:n+1]
+    movie_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:n+1]
     return movie_list
 
 def fetch_poster(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
-    data = requests.get(url).json()
+    data = requests.get(
+        f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
+    ).json()
     if data.get("poster_path"):
         return "https://image.tmdb.org/t/p/w500" + data["poster_path"]
     return None
 
 def fetch_omdb(title):
-    url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
-    return requests.get(url).json()
+    return requests.get(
+        f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
+    ).json()
+
+def fetch_trailer(movie_id):
+    data = requests.get(
+        f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
+    ).json()
+
+    for video in data.get("results", []):
+        if video["type"] == "Trailer" and video["site"] == "YouTube":
+            return f"https://www.youtube.com/watch?v={video['key']}"
+    return None
 
 # ================= MOVIE SELECTION =================
 st.subheader("🎞️ Select a Movie")
 selected_movie = st.selectbox("Movie List", movies['title'].values)
-
 st.success(f"🎥 Selected Movie: **{selected_movie}**")
 
 # ================= RECOMMEND =================
@@ -102,6 +86,7 @@ if st.button("🚀 Recommend Movies"):
         movie = movies.iloc[rec[0]]
         poster = fetch_poster(movie.movie_id)
         omdb = fetch_omdb(movie.title)
+        trailer = fetch_trailer(movie.movie_id)
 
         with cols[idx % 5]:
             st.markdown("<div class='movie-card'>", unsafe_allow_html=True)
@@ -113,5 +98,8 @@ if st.button("🚀 Recommend Movies"):
             st.caption(f"⭐ IMDb: {omdb.get('imdbRating', 'N/A')}")
             st.caption(f"🎭 Genre: {omdb.get('Genre', 'N/A')}")
             st.caption(f"📅 Year: {omdb.get('Year', 'N/A')}")
+
+            if trailer:
+                st.video(trailer)
 
             st.markdown("</div>", unsafe_allow_html=True)
