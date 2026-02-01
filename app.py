@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 import requests
 import random
+import streamlit.components.v1 as components
 
 # ================= API KEYS =================
 TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
@@ -16,42 +17,6 @@ if "watchlist" not in st.session_state:
 
 if "page" not in st.session_state:
     st.session_state.page = "Home"
-
-# ================= UI STYLE =================
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(to right, #8e2de2, #4a00e0); /* Purple gradient */
-}
-
-.top-nav {
-    display: flex;
-    justify-content: space-around;
-    background: #4b0082; /* Dark purple nav */
-    padding: 12px;
-    border-radius: 12px;
-    margin-bottom: 25px;
-}
-
-.top-nav button {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 18px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.movie-card {
-    background: white;
-    border-radius: 16px;
-    padding: 12px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-    text-align: center;
-    margin-bottom: 20px;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # ================= LOAD DATA =================
 movies = pickle.load(open("movie_list.pkl", "rb"))
@@ -80,8 +45,8 @@ def fetch_trailer(movie_id):
     if r.status_code != 200:
         return None
     for v in r.json().get("results", []):
-        if v["type"] == "Trailer":
-            return f"https://www.youtube.com/watch?v={v['key']}"
+        if v["type"] == "Trailer" and v["site"] == "YouTube":
+            return f"https://www.youtube.com/embed/{v['key']}"  # Embed URL
     return None
 
 def fetch_omdb(title):
@@ -89,76 +54,95 @@ def fetch_omdb(title):
     return requests.get(url).json()
 
 # ================= TOP NAV =================
-st.markdown('<div class="top-nav">', unsafe_allow_html=True)
-c1, c2, c3, c4 = st.columns(4)
+st.markdown("""
+<div style="display:flex;justify-content:space-around;background:#4b0082;padding:12px;border-radius:12px;margin-bottom:25px;">
+<button onclick="window.streamlitSendMessage('Home')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">🏠 Home</button>
+<button onclick="window.streamlitSendMessage('Recommend')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">🎯 Recommend</button>
+<button onclick="window.streamlitSendMessage('Watchlist')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">❤️ Watchlist</button>
+<button onclick="window.streamlitSendMessage('Surprise')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">🎲 Surprise Me</button>
+</div>
+""", unsafe_allow_html=True)
 
-if c1.button("🏠 Home"):
-    st.session_state.page = "Home"
-if c2.button("🎯 Recommend"):
-    st.session_state.page = "Recommend"
-if c3.button("❤️ Watchlist"):
-    st.session_state.page = "Watchlist"
-if c4.button("🎲 Surprise Me"):
-    st.session_state.page = "Surprise"
-
-st.markdown('</div>', unsafe_allow_html=True)
+# ================= PAGE SELECTION =================
+page = st.session_state.page
 
 # ================= HOME =================
-if st.session_state.page == "Home":
-    st.title("🎬 Movie Recommendation System")
-    st.write("Discover movies you'll love using Machine Learning")
+if page == "Home":
+    st.markdown("<h1 style='text-align:center;color:white;'>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;color:white;'>Discover movies you'll love using AI-powered recommendations!</p>", unsafe_allow_html=True)
 
 # ================= RECOMMEND =================
-elif st.session_state.page == "Recommend":
-    st.header("🎯 Choose a Movie")
-
+elif page == "Recommend":
+    st.markdown("<h2 style='color:white;'>🎯 Choose a Movie</h2>", unsafe_allow_html=True)
     movie_name = st.selectbox("Select a movie", movies["title"].values)
     num = st.slider("Number of recommendations", 3, 10, 5)
 
     if st.button("Recommend 🚀"):
         recs = recommend(movie_name, num)
-        st.subheader("✨ Recommended Movies")
+        st.markdown("<div style='display:flex;flex-wrap:wrap;gap:20px;'>", unsafe_allow_html=True)
 
-        cols = st.columns(5)
-        for i, r in enumerate(recs):
+        for r in recs:
             m = movies.iloc[r[0]]
             poster = fetch_poster(m.movie_id)
             trailer = fetch_trailer(m.movie_id)
             omdb = fetch_omdb(m.title)
 
-            with cols[i % 5]:
-                st.markdown('<div class="movie-card">', unsafe_allow_html=True)
-                if poster:
-                    st.image(poster)
-                st.write(f"**{m.title}**")
-                st.caption(f"Because you liked **{movie_name}**")
-                st.caption(f"⭐ IMDb: {omdb.get('imdbRating','N/A')}")
-                if st.button("❤️ Add", key=m.title):
-                    st.session_state.watchlist.append(m.title)
-                if trailer:
-                    if st.button(f"▶ Watch Trailer", key=f"trailer_{m.title}"):
-                        st.video(trailer)
-                st.markdown('</div>', unsafe_allow_html=True)
+            trailer_html = f"""
+            <iframe width="100%" height="200" src="{trailer}" frameborder="0" allowfullscreen></iframe>
+            """ if trailer else "<p>No trailer available</p>"
+
+            card_html = f"""
+            <div style="
+                background:white;color:black;width:200px;border-radius:16px;
+                box-shadow:0 8px 20px rgba(0,0,0,0.3);text-align:center;padding:10px;
+                transition: transform 0.3s;cursor:pointer;
+            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <img src="{poster}" width="100%" style="border-radius:12px;">
+                <h3>{m.title}</h3>
+                <p>⭐ IMDb: {omdb.get('imdbRating','N/A')}</p>
+                <p>Because you liked <b>{movie_name}</b></p>
+                <button onclick="alert('Added to Watchlist!')">❤️ Add to Watchlist</button>
+                <details>
+                    <summary>▶ Watch Trailer</summary>
+                    {trailer_html}
+                </details>
+            </div>
+            """
+            components.html(card_html, height=350, scrolling=False)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ================= WATCHLIST =================
-elif st.session_state.page == "Watchlist":
-    st.header("❤️ Your Watchlist")
+elif page == "Watchlist":
+    st.markdown("<h2 style='color:white;'>❤️ Your Watchlist</h2>", unsafe_allow_html=True)
     if not st.session_state.watchlist:
         st.info("No movies added yet")
     else:
-        for m in set(st.session_state.watchlist):
-            st.write("🎬", m)
+        for m in st.session_state.watchlist:
+            st.markdown(f"<p style='color:white;font-size:18px;'>🎬 {m}</p>", unsafe_allow_html=True)
 
 # ================= SURPRISE =================
-elif st.session_state.page == "Surprise":
-    st.header("🎲 Surprise Movie")
+elif page == "Surprise":
+    st.markdown("<h2 style='color:white;'>🎲 Surprise Movie</h2>", unsafe_allow_html=True)
     m = movies.sample(1).iloc[0]
     poster = fetch_poster(m.movie_id)
     trailer = fetch_trailer(m.movie_id)
 
-    if poster:
-        st.image(poster, width=300)
-    st.subheader(m.title)
-    if trailer:
-        if st.button("▶ Watch Trailer", key="surprise_trailer"):
-            st.video(trailer)
+    trailer_html = f"""
+    <iframe width="100%" height="300" src="{trailer}" frameborder="0" allowfullscreen></iframe>
+    """ if trailer else "<p>No trailer available</p>"
+
+    card_html = f"""
+    <div style="
+        background:white;color:black;width:300px;border-radius:16px;
+        box-shadow:0 8px 20px rgba(0,0,0,0.3);text-align:center;padding:10px;margin:auto;
+    ">
+        <img src="{poster}" width="100%" style="border-radius:12px;">
+        <h3>{m.title}</h3>
+        <details>
+            <summary>▶ Watch Trailer</summary>
+            {trailer_html}
+        </details>
+    </div>
+    """
+    components.html(card_html, height=450, scrolling=False)
