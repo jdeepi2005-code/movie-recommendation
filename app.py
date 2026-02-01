@@ -136,7 +136,8 @@ elif st.session_state.page == "Recommend":
                 if st.button("❤️ Add", key=m.title):
                     st.session_state.watchlist.append(m.title)
                 if trailer:
-                    st.markdown(f"[▶ Watch Trailer]({trailer})")
+                    if st.button(f"▶ Watch Trailer", key=f"trailer_{m.title}"):
+                        st.video(trailer)
                 st.markdown('</div>', unsafe_allow_html=True)
 
 # ================= WATCHLIST =================
@@ -159,4 +160,5 @@ elif st.session_state.page == "Surprise":
         st.image(poster, width=300)
     st.subheader(m.title)
     if trailer:
-        st.markdown(f"[▶ Watch Trailer]({trailer})")
+        if st.button("▶ Watch Trailer", key="surprise_trailer"):
+            st.video(trailer)
