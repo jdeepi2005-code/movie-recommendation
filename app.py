@@ -1,148 +1,149 @@
 import streamlit as st
 import pickle
+import pandas as pd
 import requests
 import random
-import streamlit.components.v1 as components
 
-# ================= API KEYS =================
+# =========================
+# API KEYS
+# =========================
 TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
 OMDB_API_KEY = "8bd965b9"
 
-# ================= PAGE CONFIG =================
-st.set_page_config(page_title="Movie Recommendation System", layout="wide")
+# =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(page_title="Movie Recommender", layout="wide")
 
-# ================= SESSION STATE =================
-if "watchlist" not in st.session_state:
-    st.session_state.watchlist = []
+# =========================
+# BACKGROUND & STYLE
+# =========================
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: white;
+}
+.movie-card {
+    background-color: #020617;
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+}
+</style>
+""", unsafe_allow_html=True)
 
-if "page" not in st.session_state:
-    st.session_state.page = "Home"
-
-# ================= LOAD DATA =================
-movies = pickle.load(open("movie_list.pkl", "rb"))
+# =========================
+# LOAD DATA
+# =========================
+movies = pickle.load(open("movies.pkl", "rb"))
 similarity = pickle.load(open("similarity.pkl", "rb"))
 
-# ================= FUNCTIONS =================
-def recommend(movie, n=5):
-    idx = movies[movies["title"] == movie].index[0]
-    scores = list(enumerate(similarity[idx]))
-    scores = sorted(scores, key=lambda x: x[1], reverse=True)[1:n+1]
-    return scores
+# =========================
+# SESSION STATE
+# =========================
+if "favorites" not in st.session_state:
+    st.session_state.favorites = []
 
+# =========================
+# FUNCTIONS
+# =========================
 def fetch_poster(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    data = r.json()
-    if data.get("poster_path"):
-        return "https://image.tmdb.org/t/p/w500" + data["poster_path"]
+    data = requests.get(url).json()
+    poster_path = data.get("poster_path")
+    if poster_path:
+        return "https://image.tmdb.org/t/p/w500" + poster_path
     return None
 
-def fetch_trailer(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    for v in r.json().get("results", []):
-        if v["type"] == "Trailer" and v["site"] == "YouTube":
-            return f"https://www.youtube.com/embed/{v['key']}"  # Embed URL
-    return None
-
-def fetch_omdb(title):
+def fetch_omdb_details(title):
     url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
     return requests.get(url).json()
 
-# ================= TOP NAV =================
-st.markdown("""
-<div style="display:flex;justify-content:space-around;background:#4b0082;padding:12px;border-radius:12px;margin-bottom:25px;">
-<button onclick="window.streamlitSendMessage('Home')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">🏠 Home</button>
-<button onclick="window.streamlitSendMessage('Recommend')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">🎯 Recommend</button>
-<button onclick="window.streamlitSendMessage('Watchlist')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">❤️ Watchlist</button>
-<button onclick="window.streamlitSendMessage('Surprise')" style="color:white;font-size:18px;font-weight:bold;background:none;border:none;cursor:pointer;">🎲 Surprise Me</button>
-</div>
-""", unsafe_allow_html=True)
+def recommend(movie):
+    index = movies[movies["title"] == movie].index[0]
+    distances = similarity[index]
+    movie_list = sorted(
+        list(enumerate(distances)),
+        reverse=True,
+        key=lambda x: x[1]
+    )[1:6]
 
-# ================= PAGE SELECTION =================
-page = st.session_state.page
+    rec_movies = []
+    for i in movie_list:
+        rec_movies.append(movies.iloc[i[0]])
+    return rec_movies
 
-# ================= HOME =================
-if page == "Home":
-    st.markdown("<h1 style='text-align:center;color:white;'>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center;color:white;'>Discover movies you'll love using AI-powered recommendations!</p>", unsafe_allow_html=True)
+# =========================
+# SIDEBAR FEATURES
+# =========================
+st.sidebar.title("🎛 Personalization")
 
-# ================= RECOMMEND =================
-elif page == "Recommend":
-    st.markdown("<h2 style='color:white;'>🎯 Choose a Movie</h2>", unsafe_allow_html=True)
-    movie_name = st.selectbox("Select a movie", movies["title"].values)
-    num = st.slider("Number of recommendations", 3, 10, 5)
+mood = st.sidebar.selectbox(
+    "Your Mood",
+    ["Normal", "Happy", "Sad", "Excited", "Relaxed"]
+)
 
-    if st.button("Recommend 🚀"):
-        recs = recommend(movie_name, num)
-        st.markdown("<div style='display:flex;flex-wrap:wrap;gap:20px;'>", unsafe_allow_html=True)
+if st.sidebar.button("🎲 Surprise Me"):
+    random_movie = random.choice(movies["title"].values)
+    st.session_state["selected_movie"] = random_movie
 
-        for r in recs:
-            m = movies.iloc[r[0]]
-            poster = fetch_poster(m.movie_id)
-            trailer = fetch_trailer(m.movie_id)
-            omdb = fetch_omdb(m.title)
+st.sidebar.subheader("❤️ Favorites")
+for fav in st.session_state.favorites:
+    st.sidebar.write("•", fav)
 
-            trailer_html = f"""
-            <iframe width="100%" height="200" src="{trailer}" frameborder="0" allowfullscreen></iframe>
-            """ if trailer else "<p>No trailer available</p>"
+# =========================
+# MAIN UI
+# =========================
+st.title("🎬 Movie Recommendation System")
 
-            card_html = f"""
-            <div style="
-                background:white;color:black;width:200px;border-radius:16px;
-                box-shadow:0 8px 20px rgba(0,0,0,0.3);text-align:center;padding:10px;
-                transition: transform 0.3s;cursor:pointer;
-            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                <img src="{poster}" width="100%" style="border-radius:12px;">
-                <h3>{m.title}</h3>
-                <p>⭐ IMDb: {omdb.get('imdbRating','N/A')}</p>
-                <p>Because you liked <b>{movie_name}</b></p>
-                <button onclick="alert('Added to Watchlist!')">❤️ Add to Watchlist</button>
-                <details>
-                    <summary>▶ Watch Trailer</summary>
-                    {trailer_html}
-                </details>
-            </div>
-            """
-            components.html(card_html, height=350, scrolling=False)
+movie_list = movies["title"].values
+selected_movie = st.selectbox(
+    "Select a movie",
+    movie_list,
+    index=0
+)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+if "selected_movie" in st.session_state:
+    selected_movie = st.session_state["selected_movie"]
 
-# ================= WATCHLIST =================
-elif page == "Watchlist":
-    st.markdown("<h2 style='color:white;'>❤️ Your Watchlist</h2>", unsafe_allow_html=True)
-    if not st.session_state.watchlist:
-        st.info("No movies added yet")
-    else:
-        for m in st.session_state.watchlist:
-            st.markdown(f"<p style='color:white;font-size:18px;'>🎬 {m}</p>", unsafe_allow_html=True)
+# =========================
+# RECOMMEND BUTTON
+# =========================
+if st.button("Recommend"):
+    recommendations = recommend(selected_movie)
 
-# ================= SURPRISE =================
-elif page == "Surprise":
-    st.markdown("<h2 style='color:white;'>🎲 Surprise Movie</h2>", unsafe_allow_html=True)
-    m = movies.sample(1).iloc[0]
-    poster = fetch_poster(m.movie_id)
-    trailer = fetch_trailer(m.movie_id)
+    st.subheader("Recommended Movies")
 
-    trailer_html = f"""
-    <iframe width="100%" height="300" src="{trailer}" frameborder="0" allowfullscreen></iframe>
-    """ if trailer else "<p>No trailer available</p>"
+    cols = st.columns(5)
 
-    card_html = f"""
-    <div style="
-        background:white;color:black;width:300px;border-radius:16px;
-        box-shadow:0 8px 20px rgba(0,0,0,0.3);text-align:center;padding:10px;margin:auto;
-    ">
-        <img src="{poster}" width="100%" style="border-radius:12px;">
-        <h3>{m.title}</h3>
-        <details>
-            <summary>▶ Watch Trailer</summary>
-            {trailer_html}
-        </details>
-    </div>
-    """
-    components.html(card_html, height=450, scrolling=False)
+    for idx, movie in enumerate(recommendations):
+        with cols[idx]:
+            poster = fetch_poster(movie.movie_id)
+            omdb = fetch_omdb_details(movie.title)
+
+            st.markdown('<div class="movie-card">', unsafe_allow_html=True)
+
+            if poster:
+                st.image(poster, use_container_width=True)
+
+            st.markdown(f"**{movie.title}**")
+
+            # IMDb Rating
+            imdb = omdb.get("imdbRating", "N/A")
+            awards = omdb.get("Awards", "N/A")
+            runtime = omdb.get("Runtime", "N/A")
+
+            st.write("⭐ IMDb:", imdb)
+            st.write("🏆 Awards:", awards)
+            st.write("⏱ Runtime:", runtime)
+
+            # Why this movie
+            st.caption("🧠 Recommended because it is similar in genre and storyline.")
+
+            # Add to favorites
+            if st.button("❤️ Add", key=movie.title):
+                if movie.title not in st.session_state.favorites:
+                    st.session_state.favorites.append(movie.title)
+
+            st.markdown('</div>', unsafe_allow_html=True)
