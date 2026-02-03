@@ -1,149 +1,129 @@
 import streamlit as st
 import pickle
-import pandas as pd
 import requests
-import random
 
-# =========================
-# API KEYS
-# =========================
+# ================= API KEYS =================
 TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
 OMDB_API_KEY = "8bd965b9"
 
-# =========================
-# PAGE CONFIG
-# =========================
-st.set_page_config(page_title="Movie Recommender", layout="wide")
+# ================= PAGE CONFIG =================
+st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 
-# =========================
-# BACKGROUND & STYLE
-# =========================
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    color: white;
-}
-.movie-card {
-    background-color: #020617;
-    padding: 10px;
-    border-radius: 10px;
-    text-align: center;
-}
-</style>
-""", unsafe_allow_html=True)
+# ================= SIDEBAR NAV =================
+st.sidebar.title("🎬 Movie App")
+page = st.sidebar.radio("Navigate", ["🏠 Home", "🎥 Recommend", "ℹ️ About"])
 
-# =========================
-# LOAD DATA
-# =========================
-movies = pickle.load(open("movies.pkl", "rb"))
+theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
+
+# ================= THEME =================
+if theme == "Dark":
+    st.markdown("""
+    <style>
+    .stApp { background: linear-gradient(135deg,#0f2027,#203a43,#2c5364); color:white; }
+    .card { background:#111827; padding:15px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,.7); }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    .stApp { background:#f5f7fb; color:black; }
+    .card { background:white; padding:15px; border-radius:15px; box-shadow:0 8px 20px rgba(0,0,0,.15); }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ================= LOAD DATA =================
+movies = pickle.load(open("movie_list.pkl", "rb"))
 similarity = pickle.load(open("similarity.pkl", "rb"))
 
-# =========================
-# SESSION STATE
-# =========================
-if "favorites" not in st.session_state:
-    st.session_state.favorites = []
+# ================= FUNCTIONS =================
+def recommend(movie, n):
+    index = movies[movies['title'] == movie].index[0]
+    distances = similarity[index]
+    return sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:n+1]
 
-# =========================
-# FUNCTIONS
-# =========================
 def fetch_poster(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
-    data = requests.get(url).json()
-    poster_path = data.get("poster_path")
-    if poster_path:
-        return "https://image.tmdb.org/t/p/w500" + poster_path
+    data = requests.get(
+        f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
+    ).json()
+    return "https://image.tmdb.org/t/p/w500"+data["poster_path"] if data.get("poster_path") else None
+
+def fetch_omdb(title):
+    return requests.get(
+        f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
+    ).json()
+
+def fetch_trailer(movie_id):
+    data = requests.get(
+        f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
+    ).json()
+    for v in data.get("results", []):
+        if v["type"]=="Trailer" and v["site"]=="YouTube":
+            return f"https://www.youtube.com/watch?v={v['key']}"
     return None
 
-def fetch_omdb_details(title):
-    url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
-    return requests.get(url).json()
+# ================= HOME PAGE =================
+if page == "🏠 Home":
+    st.markdown("<h1 style='text-align:center;'>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center;'>Discover Movies You’ll Love ❤️</h3>", unsafe_allow_html=True)
 
-def recommend(movie):
-    index = movies[movies["title"] == movie].index[0]
-    distances = similarity[index]
-    movie_list = sorted(
-        list(enumerate(distances)),
-        reverse=True,
-        key=lambda x: x[1]
-    )[1:6]
+    st.markdown("""
+    <div class="card">
+    <h4>✨ Features</h4>
+    <ul>
+    <li>ML-based personalized recommendations</li>
+    <li>Movie posters, ratings & trailers</li>
+    <li>Light & Dark theme</li>
+    <li>Fast & interactive UI</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
-    rec_movies = []
-    for i in movie_list:
-        rec_movies.append(movies.iloc[i[0]])
-    return rec_movies
+# ================= RECOMMEND PAGE =================
+elif page == "🎥 Recommend":
+    st.markdown("<h2>🎥 Movie Recommendations</h2>", unsafe_allow_html=True)
 
-# =========================
-# SIDEBAR FEATURES
-# =========================
-st.sidebar.title("🎛 Personalization")
+    movie = st.selectbox("Select a Movie", movies['title'].values)
+    n = st.slider("Number of Recommendations", 3, 10, 5)
 
-mood = st.sidebar.selectbox(
-    "Your Mood",
-    ["Normal", "Happy", "Sad", "Excited", "Relaxed"]
-)
+    if st.button("🚀 Recommend"):
+        recs = recommend(movie, n)
+        cols = st.columns(5)
 
-if st.sidebar.button("🎲 Surprise Me"):
-    random_movie = random.choice(movies["title"].values)
-    st.session_state["selected_movie"] = random_movie
+        for idx, rec in enumerate(recs):
+            m = movies.iloc[rec[0]]
+            poster = fetch_poster(m.movie_id)
+            omdb = fetch_omdb(m.title)
+            trailer = fetch_trailer(m.movie_id)
 
-st.sidebar.subheader("❤️ Favorites")
-for fav in st.session_state.favorites:
-    st.sidebar.write("•", fav)
+            with cols[idx % 5]:
+                st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-# =========================
-# MAIN UI
-# =========================
-st.title("🎬 Movie Recommendation System")
+                if poster:
+                    st.image(poster, use_container_width=True)
 
-movie_list = movies["title"].values
-selected_movie = st.selectbox(
-    "Select a movie",
-    movie_list,
-    index=0
-)
+                st.markdown(f"**{m.title}**")
+                st.caption(f"⭐ IMDb: {omdb.get('imdbRating','N/A')}")
+                st.caption(f"🎭 {omdb.get('Genre','N/A')}")
 
-if "selected_movie" in st.session_state:
-    selected_movie = st.session_state["selected_movie"]
+                if trailer:
+                    if st.button("🎬 Watch Trailer", key=m.movie_id):
+                        st.video(trailer)
 
-# =========================
-# RECOMMEND BUTTON
-# =========================
-if st.button("Recommend"):
-    recommendations = recommend(selected_movie)
+                st.markdown("</div>", unsafe_allow_html=True)
 
-    st.subheader("Recommended Movies")
+# ================= ABOUT PAGE =================
+elif page == "ℹ️ About":
+    st.markdown("<h2>ℹ️ About This Project</h2>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="card">
+    <p>This Movie Recommendation System uses <b>Content-Based Filtering</b>
+    and <b>Cosine Similarity</b> to suggest movies similar to the selected one.</p>
 
-    cols = st.columns(5)
-
-    for idx, movie in enumerate(recommendations):
-        with cols[idx]:
-            poster = fetch_poster(movie.movie_id)
-            omdb = fetch_omdb_details(movie.title)
-
-            st.markdown('<div class="movie-card">', unsafe_allow_html=True)
-
-            if poster:
-                st.image(poster, use_container_width=True)
-
-            st.markdown(f"**{movie.title}**")
-
-            # IMDb Rating
-            imdb = omdb.get("imdbRating", "N/A")
-            awards = omdb.get("Awards", "N/A")
-            runtime = omdb.get("Runtime", "N/A")
-
-            st.write("⭐ IMDb:", imdb)
-            st.write("🏆 Awards:", awards)
-            st.write("⏱ Runtime:", runtime)
-
-            # Why this movie
-            st.caption("🧠 Recommended because it is similar in genre and storyline.")
-
-            # Add to favorites
-            if st.button("❤️ Add", key=movie.title):
-                if movie.title not in st.session_state.favorites:
-                    st.session_state.favorites.append(movie.title)
-
-            st.markdown('</div>', unsafe_allow_html=True)
+    <p><b>Technologies Used:</b></p>
+    <ul>
+    <li>Python & Streamlit</li>
+    <li>Machine Learning</li>
+    <li>TMDB & OMDB APIs</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
