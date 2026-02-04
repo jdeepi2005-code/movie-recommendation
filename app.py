@@ -139,31 +139,31 @@ def movie_details(movie_id):
     """
     return details
 
-# ---------------- FUNCTION TO DISPLAY MOVIES IN ROWS ----------------
-def display_movies_row(movies_list, key_prefix=""):
+# ---------------- DISPLAY MOVIES IN ROWS OF 4 ----------------
+def display_movies_in_rows(movies_list, key_prefix=""):
     row_size = 4
     for i in range(0, len(movies_list), row_size):
         cols = st.columns(min(row_size, len(movies_list) - i))
-        for j, rec in enumerate(movies_list[i:i+row_size]):
-            if isinstance(rec, tuple):
-                m = movies.iloc[rec[0]]
-            else:
-                m = rec
+        for j, m in enumerate(movies_list[i:i+row_size]):
             with cols[j]:
+                if isinstance(m, tuple):
+                    movie = movies.iloc[m[0]]
+                else:
+                    movie = m
                 st.markdown(
                     f'<div class="movie-card">'
-                    f'<img src="{poster(m.movie_id)}">'
-                    f'<p class="title">{m.title}</p>'
-                    f'{movie_details(m.movie_id)}'
+                    f'<img src="{poster(movie.movie_id)}">'
+                    f'<p class="title">{movie.title}</p>'
+                    f'{movie_details(movie.movie_id)}'
                     f'</div>', unsafe_allow_html=True)
-                t = trailer(m.movie_id)
+                t = trailer(movie.movie_id)
                 if t:
                     if st.button("Watch Trailer", key=f"{key_prefix}_trailer_{i+j}"):
                         st.video(trailer_url_to_embed(t), format="youtube")
                 if st.button("Add to Watchlist", key=f"{key_prefix}_watchlist_{i+j}"):
-                    if m.title not in st.session_state.watchlist:
-                        st.session_state.watchlist.append(m.title)
-                        st.success(f"{m.title} added to watchlist")
+                    if movie.title not in st.session_state.watchlist:
+                        st.session_state.watchlist.append(movie.title)
+                        st.success(f"{movie.title} added to watchlist")
 
 # ---------------- SIDEBAR ----------------
 page = st.sidebar.radio(
@@ -213,13 +213,13 @@ elif page == "Recommended":
 
         st.subheader("Similar Movies")
         recs = recommend(selected_movie, n=int(n_recommend))
-        display_movies_row(recs, key_prefix="recommended")
+        display_movies_in_rows(recs, key_prefix="recommended")
 
 # ---------------- SURPRISE ME ----------------
 elif page == "Surprise Me":
     st.title("Surprise Me")
     movie = movies.sample(1).iloc[0]
-    display_movies_row([movie], key_prefix="surprise")
+    display_movies_in_rows([movie], key_prefix="surprise")
 
 # ---------------- MOOD ----------------
 elif page == "Recommend by Mood":
@@ -234,7 +234,7 @@ elif page == "Recommend by Mood":
     mood = st.selectbox("Select Mood", mood_map.keys())
     keywords = mood_map[mood]
     filtered = movies[movies["tags"].str.contains("|".join(keywords), case=False, na=False)]
-    display_movies_row(filtered.sample(min(8, len(filtered))), key_prefix="mood")  # 8 max for 2 rows
+    display_movies_in_rows(filtered.sample(min(8, len(filtered))), key_prefix="mood")
 
 # ---------------- THEME ----------------
 elif page == "Theme":
@@ -248,7 +248,7 @@ elif page == "Theme":
     theme = st.selectbox("Select Theme", theme_map.keys())
     keywords = theme_map[theme]
     filtered = movies[movies["tags"].str.contains("|".join(keywords), case=False, na=False)]
-    display_movies_row(filtered.sample(min(8, len(filtered))), key_prefix="theme")
+    display_movies_in_rows(filtered.sample(min(8, len(filtered))), key_prefix="theme")
 
 # ---------------- WATCHLIST ----------------
 elif page == "Watchlist":
@@ -257,4 +257,4 @@ elif page == "Watchlist":
         st.info("Watchlist is empty")
     else:
         watchlist_movies = [movies[movies["title"] == t].iloc[0] for t in st.session_state.watchlist]
-        display_movies_row(watchlist_movies, key_prefix="watchlist")
+        display_movies_in_rows(watchlist_movies, key_prefix="watchlist")
