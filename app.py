@@ -142,26 +142,24 @@ def display_movies_in_rows(movies_list, key_prefix=""):
     row_size = 4
     for i in range(0, len(movies_list), row_size):
         cols = st.columns(min(row_size, len(movies_list)-i))
-        for j, m in enumerate(movies_list[i:i+row_size]):
-            with cols[j]:
-                if isinstance(m, tuple):
-                    movie = movies.iloc[m[0]]
-                else:
-                    movie = m
-                st.markdown(
-                    f'<div class="movie-card">'
-                    f'<img src="{poster(movie.movie_id)}">'
-                    f'<p class="title">{movie.title}</p>'
-                    f'{movie_details(movie.movie_id)}'
-                    f'</div>', unsafe_allow_html=True)
-                t = trailer(movie.movie_id)
-                if t:
-                    if st.button("Watch Trailer", key=f"{key_prefix}_trailer_{i+j}"):
-                        st.video(trailer_url_to_embed(t), format="youtube")
-                if st.button("Add to Watchlist", key=f"{key_prefix}_watchlist_{i+j}"):
-                    if movie.title not in st.session_state.watchlist:
-                        st.session_state.watchlist.append(movie.title)
-                        st.success(f"{movie.title} added to watchlist")
+        for j, movie in enumerate(movies_list[i:i+row_size]):
+            # Convert dict to Series if needed
+            if isinstance(movie, dict):
+                movie = st.session_state.df_from_dict.get(movie['title'], movie)
+            st.markdown(
+                f'<div class="movie-card">'
+                f'<img src="{poster(movie.movie_id)}">'
+                f'<p class="title">{movie.title}</p>'
+                f'{movie_details(movie.movie_id)}'
+                f'</div>', unsafe_allow_html=True)
+            t = trailer(movie.movie_id)
+            if t:
+                if st.button("Watch Trailer", key=f"{key_prefix}_trailer_{i+j}"):
+                    st.video(trailer_url_to_embed(t), format="youtube")
+            if st.button("Add to Watchlist", key=f"{key_prefix}_watchlist_{i+j}"):
+                if movie.title not in st.session_state.watchlist:
+                    st.session_state.watchlist.append(movie.title)
+                    st.success(f"{movie.title} added to watchlist")
 
 # ---------------- SIDEBAR ----------------
 page = st.sidebar.radio(
@@ -185,14 +183,11 @@ if page == "Home":
 elif page == "Recommended":
     st.title("Recommended Movies")
     selected_movie = st.selectbox("Select a movie", movies["title"].values)
-
-    # Number of movies input
     n_recommend = st.number_input("Number of movies to recommend", min_value=1, max_value=20, value=5, step=1)
 
     if selected_movie:
         movie_row = movies[movies["title"] == selected_movie].iloc[0]
         col1, col2 = st.columns([1,2])
-
         with col1:
             st.markdown(
                 f'<div class="movie-card">'
@@ -204,7 +199,6 @@ elif page == "Recommended":
                 if selected_movie not in st.session_state.watchlist:
                     st.session_state.watchlist.append(selected_movie)
                     st.success("Added to watchlist")
-
         with col2:
             t = trailer(movie_row.movie_id)
             if t:
@@ -234,7 +228,8 @@ elif page == "Recommend by Mood":
     mood = st.selectbox("Select Mood", mood_map.keys())
     keywords = mood_map[mood]
     filtered = movies[movies["tags"].str.contains("|".join(keywords), case=False, na=False)]
-    display_movies_in_rows(filtered.sample(min(8, len(filtered))), key_prefix="mood")
+    sample = filtered.sample(min(8, len(filtered)))
+    display_movies_in_rows(sample.to_dict('records'), key_prefix="mood")
 
 # ---------------- THEME ----------------
 elif page == "Theme":
@@ -248,7 +243,8 @@ elif page == "Theme":
     theme = st.selectbox("Select Theme", theme_map.keys())
     keywords = theme_map[theme]
     filtered = movies[movies["tags"].str.contains("|".join(keywords), case=False, na=False)]
-    display_movies_in_rows(filtered.sample(min(8, len(filtered))), key_prefix="theme")
+    sample = filtered.sample(min(8, len(filtered)))
+    display_movies_in_rows(sample.to_dict('records'), key_prefix="theme")
 
 # ---------------- WATCHLIST ----------------
 elif page == "Watchlist":
