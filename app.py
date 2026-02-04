@@ -11,24 +11,63 @@ st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = []
 
-# ---------------- STYLES (Light Mode) ----------------
+# ---------------- CUSTOM NETFLIX-LIGHT THEME ----------------
 st.markdown("""
 <style>
 .stApp { 
     background-color:#f5f5f5; 
-    color:black; 
+    color:#111; 
     font-family: 'Arial', sans-serif; 
     font-size:16px; 
 }
-.card {
+
+/* Card styling for movies */
+.movie-card {
     background:#ffffff;
-    padding:15px;
-    border-radius:10px;
-    margin-bottom:15px;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    padding:10px;
+    border-radius:15px;
+    margin-bottom:20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-align:center;
 }
-h1,h2,h3,h4,h5,h6, p, label, div, span { 
-    color:black; 
+.movie-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+.movie-card img {
+    border-radius:10px;
+    width:100%;
+    height:auto;
+}
+.movie-card p {
+    font-weight:bold;
+    margin-top:5px;
+    font-size:14px;
+}
+
+/* Headings */
+h1,h2,h3,h4,h5,h6 {
+    color:#111;
+}
+
+/* Sidebar */
+.css-1d391kg { 
+    background-color:#ffffff !important;
+    color:#111 !important;
+}
+
+/* Buttons */
+.stButton>button {
+    background-color:#e50914;
+    color:white;
+    border-radius:8px;
+    padding:0.5em 1em;
+    font-weight:bold;
+    transition: background-color 0.2s;
+}
+.stButton>button:hover {
+    background-color:#b00710;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -88,7 +127,7 @@ elif page == "Recommended":
         col1, col2 = st.columns([1,2])
 
         with col1:
-            st.image(poster(movie_row.movie_id), use_container_width=True)
+            st.markdown(f'<div class="movie-card"><img src="{poster(movie_row.movie_id)}"><p>{selected_movie}</p></div>', unsafe_allow_html=True)
 
             if st.button("Add to Watchlist"):
                 if selected_movie not in st.session_state.watchlist:
@@ -106,8 +145,7 @@ elif page == "Recommended":
         for i, rec in enumerate(recs):
             m = movies.iloc[rec[0]]
             with cols[i]:
-                st.image(poster(m.movie_id), use_container_width=True)
-                st.caption(m.title)
+                st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
 
                 # Trailer inside app
                 t = trailer(m.movie_id)
@@ -128,7 +166,7 @@ elif page == "Surprise Me":
 
     col1, col2 = st.columns([1,2])
     with col1:
-        st.image(poster(movie.movie_id), use_container_width=True)
+        st.markdown(f'<div class="movie-card"><img src="{poster(movie.movie_id)}"><p>{movie.title}</p></div>', unsafe_allow_html=True)
     with col2:
         st.subheader(movie.title)
         t = trailer(movie.movie_id)
@@ -156,8 +194,7 @@ elif page == "Recommend by Mood":
     cols = st.columns(5)
     for i, (_, m) in enumerate(sample.iterrows()):
         with cols[i]:
-            st.image(poster(m.movie_id), use_container_width=True)
-            st.caption(m.title)
+            st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
             t = trailer(m.movie_id)
             if t:
                 st.video(trailer_url_to_embed(t), format="youtube")
@@ -173,8 +210,7 @@ elif page == "Watchlist":
         for i, title in enumerate(st.session_state.watchlist):
             m = movies[movies["title"] == title].iloc[0]
             with cols[i % 4]:
-                st.image(poster(m.movie_id), use_container_width=True)
-                st.caption(title)
+                st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{title}</p></div>', unsafe_allow_html=True)
                 t = trailer(m.movie_id)
                 if t:
                     st.video(trailer_url_to_embed(t), format="youtube")
