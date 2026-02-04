@@ -11,23 +11,24 @@ st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = []
 
-# ---------------- STYLES ----------------
+# ---------------- STYLES (Light Mode) ----------------
 st.markdown("""
 <style>
 .stApp { 
-    background-color:#0f172a; 
-    color:white; 
+    background-color:#f5f5f5; 
+    color:black; 
     font-family: 'Arial', sans-serif; 
     font-size:16px; 
 }
 .card {
-    background:#020617;
+    background:#ffffff;
     padding:15px;
     border-radius:10px;
     margin-bottom:15px;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
 }
 h1,h2,h3,h4,h5,h6, p, label, div, span { 
-    color:white; 
+    color:black; 
 }
 </style>
 """, unsafe_allow_html=True)
@@ -57,6 +58,12 @@ def trailer(movie_id):
         if v["site"] == "YouTube" and v["type"] == "Trailer":
             return f"https://www.youtube.com/watch?v={v['key']}"
     return None
+
+def trailer_url_to_embed(url):
+    """Converts YouTube URL to embeddable video URL for st.video"""
+    if "watch?v=" in url:
+        return url.replace("watch?v=", "embed/")
+    return url
 
 # ---------------- SIDEBAR ----------------
 page = st.sidebar.radio(
@@ -91,8 +98,7 @@ elif page == "Recommended":
         with col2:
             t = trailer(movie_row.movie_id)
             if t:
-                if st.button(f"Watch Trailer: {selected_movie}"):
-                    st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
+                st.video(trailer_url_to_embed(t), format="youtube")
 
         st.subheader("Similar Movies")
         recs = recommend(selected_movie)
@@ -102,10 +108,17 @@ elif page == "Recommended":
             with cols[i]:
                 st.image(poster(m.movie_id), use_container_width=True)
                 st.caption(m.title)
+
+                # Trailer inside app
                 t = trailer(m.movie_id)
                 if t:
-                    if st.button(f"Watch Trailer: {m.title}", key=f"trailer_{i}"):
-                        st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
+                    st.video(trailer_url_to_embed(t), format="youtube")
+
+                # Add to watchlist button
+                if st.button("Add to Watchlist", key=f"watchlist_rec_{i}"):
+                    if m.title not in st.session_state.watchlist:
+                        st.session_state.watchlist.append(m.title)
+                        st.success(f"{m.title} added to watchlist")
 
 # ---------------- SURPRISE ME ----------------
 elif page == "Surprise Me":
@@ -120,8 +133,7 @@ elif page == "Surprise Me":
         st.subheader(movie.title)
         t = trailer(movie.movie_id)
         if t:
-            if st.button(f"Watch Trailer: {movie.title}"):
-                st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
+            st.video(trailer_url_to_embed(t), format="youtube")
 
 # ---------------- MOOD ----------------
 elif page == "Recommend by Mood":
@@ -148,8 +160,7 @@ elif page == "Recommend by Mood":
             st.caption(m.title)
             t = trailer(m.movie_id)
             if t:
-                if st.button(f"Watch Trailer: {m.title}", key=f"mood_{i}"):
-                    st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
+                st.video(trailer_url_to_embed(t), format="youtube")
 
 # ---------------- WATCHLIST ----------------
 elif page == "Watchlist":
@@ -166,5 +177,4 @@ elif page == "Watchlist":
                 st.caption(title)
                 t = trailer(m.movie_id)
                 if t:
-                    if st.button(f"Watch Trailer: {m.title}", key=f"watchlist_{i}"):
-                        st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
+                    st.video(trailer_url_to_embed(t), format="youtube")
