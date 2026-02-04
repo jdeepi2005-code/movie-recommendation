@@ -107,13 +107,20 @@ def trailer_url_to_embed(url):
 # ---------------- SIDEBAR ----------------
 page = st.sidebar.radio(
     "Navigation",
-    ["Home", "Recommended", "Surprise Me", "Recommend by Mood", "Watchlist"]
+    ["Home", "Recommended", "Surprise Me", "Recommend by Mood", "Theme", "Watchlist"]
 )
 
 # ---------------- HOME ----------------
 if page == "Home":
     st.title("Movie Recommendation System")
-    st.write("Personalized movie discovery using machine learning.")
+    st.write("""
+    Welcome to the **Movie Recommendation System**! 🎬
+
+    - Discover movies based on your **favorite titles**, **mood**, or **surprise picks**.
+    - Watch trailers **directly inside the app** when you click the **Watch Trailer** button.
+    - Add movies to your **personal watchlist** and keep track of what you want to watch.
+    - The system uses **machine learning** to recommend similar movies tailored to your taste.
+    """)
 
 # ---------------- RECOMMENDED ----------------
 elif page == "Recommended":
@@ -137,7 +144,8 @@ elif page == "Recommended":
         with col2:
             t = trailer(movie_row.movie_id)
             if t:
-                st.video(trailer_url_to_embed(t), format="youtube")
+                if st.button(f"Watch Trailer: {selected_movie}", key="trailer_main"):
+                    st.video(trailer_url_to_embed(t), format="youtube")
 
         st.subheader("Similar Movies")
         recs = recommend(selected_movie)
@@ -147,10 +155,11 @@ elif page == "Recommended":
             with cols[i]:
                 st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
 
-                # Trailer inside app
+                # Trailer inside app with button
                 t = trailer(m.movie_id)
                 if t:
-                    st.video(trailer_url_to_embed(t), format="youtube")
+                    if st.button("Watch Trailer", key=f"trailer_rec_{i}"):
+                        st.video(trailer_url_to_embed(t), format="youtube")
 
                 # Add to watchlist button
                 if st.button("Add to Watchlist", key=f"watchlist_rec_{i}"):
@@ -171,7 +180,8 @@ elif page == "Surprise Me":
         st.subheader(movie.title)
         t = trailer(movie.movie_id)
         if t:
-            st.video(trailer_url_to_embed(t), format="youtube")
+            if st.button("Watch Trailer", key="trailer_surprise"):
+                st.video(trailer_url_to_embed(t), format="youtube")
 
 # ---------------- MOOD ----------------
 elif page == "Recommend by Mood":
@@ -197,7 +207,40 @@ elif page == "Recommend by Mood":
             st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
             t = trailer(m.movie_id)
             if t:
-                st.video(trailer_url_to_embed(t), format="youtube")
+                if st.button("Watch Trailer", key=f"trailer_mood_{i}"):
+                    st.video(trailer_url_to_embed(t), format="youtube")
+
+# ---------------- THEME ----------------
+elif page == "Theme":
+    st.title("Theme Based Recommendations")
+
+    theme_map = {
+        "Action": ["action", "adventure", "thriller"],
+        "Romance": ["romance", "drama", "comedy"],
+        "Comedy": ["comedy", "family"],
+        "Horror": ["horror", "thriller", "mystery"],
+    }
+
+    theme = st.selectbox("Select Theme", theme_map.keys())
+    keywords = theme_map[theme]
+
+    filtered = movies[movies["tags"].str.contains("|".join(keywords), case=False, na=False)]
+    sample = filtered.sample(min(5, len(filtered)))
+
+    cols = st.columns(5)
+    for i, (_, m) in enumerate(sample.iterrows()):
+        with cols[i]:
+            st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
+            
+            t = trailer(m.movie_id)
+            if t:
+                if st.button("Watch Trailer", key=f"theme_trailer_{i}"):
+                    st.video(trailer_url_to_embed(t), format="youtube")
+            
+            if st.button("Add to Watchlist", key=f"theme_watchlist_{i}"):
+                if m.title not in st.session_state.watchlist:
+                    st.session_state.watchlist.append(m.title)
+                    st.success(f"{m.title} added to watchlist")
 
 # ---------------- WATCHLIST ----------------
 elif page == "Watchlist":
@@ -213,4 +256,5 @@ elif page == "Watchlist":
                 st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{title}</p></div>', unsafe_allow_html=True)
                 t = trailer(m.movie_id)
                 if t:
-                    st.video(trailer_url_to_embed(t), format="youtube")
+                    if st.button("Watch Trailer", key=f"watchlist_trailer_{i}"):
+                        st.video(trailer_url_to_embed(t), format="youtube")
