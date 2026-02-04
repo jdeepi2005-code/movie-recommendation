@@ -17,14 +17,21 @@ if "watchlist" not in st.session_state:
 # ---------------- STYLES ----------------
 st.markdown("""
 <style>
-.stApp { background-color:#0f172a; color:white; }
+.stApp { 
+    background-color:#0f172a; 
+    color:white; 
+    font-family: 'Arial', sans-serif; 
+    font-size:16px; 
+}
 .card {
     background:#020617;
     padding:15px;
     border-radius:10px;
     margin-bottom:15px;
 }
-h1,h2,h3 { color:white; }
+h1,h2,h3,h4,h5,h6, p, label, div, span { 
+    color:white; 
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,7 +110,8 @@ elif page == "Recommended":
         with col2:
             t = trailer(movie_row.movie_id)
             if t:
-                st.video(t)
+                if st.button(f"Watch Trailer: {selected_movie}"):
+                    st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
 
         st.subheader("Similar Movies")
         cols = st.columns(5)
@@ -128,7 +136,8 @@ elif page == "Surprise Me":
         st.subheader(movie.title)
         t = trailer(movie.movie_id)
         if t:
-            st.video(t)
+            if st.button(f"Watch Trailer: {movie.title}"):
+                st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
 
 # ---------------- MOOD ----------------
 elif page == "Recommend by Mood":
