@@ -11,19 +11,20 @@ st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = []
 
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 # ---------------- RED NETFLIX THEME ----------------
 st.markdown("""
 <style>
 .stApp { 
-    background-color:#fff0f0;  /* light red background */
+    background-color:#fff0f0;  
     color:#1f1f1f; 
     font-family: 'Arial', sans-serif; 
     font-size:16px; 
 }
-
-/* Card styling for movies */
 .movie-card {
-    background:#ffdddd;  /* pastel red card */
+    background:#ffdddd;  
     padding:10px;
     border-radius:15px;
     margin-bottom:20px;
@@ -45,8 +46,6 @@ st.markdown("""
     margin-top:5px;
     font-size:14px;
 }
-
-/* Movie details box */
 .movie-card .details {
     background-color: rgba(255, 255, 255, 0.85);
     border-radius: 8px;
@@ -59,21 +58,13 @@ st.markdown("""
 .movie-card .details strong {
     color:#b30000;
 }
-
-/* Headings */
-h1,h2,h3,h4,h5,h6 {
-    color:#b30000;  /* dark red headings */
-}
-
-/* Sidebar */
+h1,h2,h3,h4,h5,h6 { color:#b30000; }
 .css-1d391kg { 
-    background-color:#ffdddd !important;  /* red sidebar */
+    background-color:#ffdddd !important;  
     color:#1f1f1f !important;
 }
-
-/* Buttons */
 .stButton>button {
-    background-color:#e50914;  /* Netflix red */
+    background-color:#e50914;  
     color:white;
     border-radius:8px;
     padding:0.5em 1em;
@@ -81,10 +72,23 @@ h1,h2,h3,h4,h5,h6 {
     transition: background-color 0.2s;
 }
 .stButton>button:hover {
-    background-color:#b00710;  /* darker red on hover */
+    background-color:#b00710;  
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ---------------- LOGIN PAGE ----------------
+if not st.session_state.logged_in:
+    st.title("Login")
+    email = st.text_input("Email")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if "@" in email and password:
+            st.session_state.logged_in = True
+            st.experimental_rerun()
+        else:
+            st.error("Enter valid email and password")
+    st.stop()
 
 # ---------------- LOAD DATA ----------------
 movies = pickle.load(open("movie_list.pkl", "rb"))
@@ -113,24 +117,19 @@ def trailer(movie_id):
     return None
 
 def trailer_url_to_embed(url):
-    """Converts YouTube URL to embeddable video URL for st.video"""
     if "watch?v=" in url:
         return url.replace("watch?v=", "embed/")
     return url
 
 def movie_details(movie_id):
-    """Fetch movie details and format neatly for display"""
     data = requests.get(
         f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
     ).json()
     release = data.get("release_date", "N/A")
     rating = data.get("vote_average", "N/A")
     overview = data.get("overview", "No overview available")
-    
-    # Truncate overview to 200 chars
     if len(overview) > 200:
         overview = overview[:200] + "..."
-    
     details = f"""
     <div class="details">
         <strong>Release:</strong> {release}<br>
@@ -163,6 +162,9 @@ elif page == "Recommended":
     st.title("Recommended Movies")
     selected_movie = st.selectbox("Select a movie", movies["title"].values)
 
+    # Input for number of recommendations
+    n_recommend = st.number_input("Number of movies to recommend", min_value=1, max_value=20, value=5, step=1)
+
     if selected_movie:
         movie_row = movies[movies["title"] == selected_movie].iloc[0]
         col1, col2 = st.columns([1,2])
@@ -187,7 +189,7 @@ elif page == "Recommended":
                     st.video(trailer_url_to_embed(t), format="youtube")
 
         st.subheader("Similar Movies")
-        recs = recommend(selected_movie)
+        recs = recommend(selected_movie, n=int(n_recommend))
         cols = st.columns(len(recs))
         for i, rec in enumerate(recs):
             m = movies.iloc[rec[0]]
