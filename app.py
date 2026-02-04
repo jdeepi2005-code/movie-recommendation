@@ -11,19 +11,19 @@ st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = []
 
-# ---------------- CUSTOM NETFLIX-LIGHT THEME ----------------
+# ---------------- PURPLE NETFLIX THEME ----------------
 st.markdown("""
 <style>
 .stApp { 
-    background-color:#f5f5f5; 
-    color:#111; 
+    background-color:#f3f0f8;  /* light purple background */
+    color:#1f1f1f; 
     font-family: 'Arial', sans-serif; 
     font-size:16px; 
 }
 
 /* Card styling for movies */
 .movie-card {
-    background:#ffffff;
+    background:#d9c9f0;  /* light purple card */
     padding:10px;
     border-radius:15px;
     margin-bottom:20px;
@@ -48,18 +48,18 @@ st.markdown("""
 
 /* Headings */
 h1,h2,h3,h4,h5,h6 {
-    color:#111;
+    color:#4b0082;  /* dark purple headings */
 }
 
 /* Sidebar */
 .css-1d391kg { 
-    background-color:#ffffff !important;
-    color:#111 !important;
+    background-color:#d9c9f0 !important;  /* purple sidebar */
+    color:#1f1f1f !important;
 }
 
 /* Buttons */
 .stButton>button {
-    background-color:#e50914;
+    background-color:#7b2cbf;  /* purple buttons */
     color:white;
     border-radius:8px;
     padding:0.5em 1em;
@@ -67,7 +67,7 @@ h1,h2,h3,h4,h5,h6 {
     transition: background-color 0.2s;
 }
 .stButton>button:hover {
-    background-color:#b00710;
+    background-color:#5c1a8c;  /* darker purple on hover */
 }
 </style>
 """, unsafe_allow_html=True)
