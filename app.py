@@ -3,7 +3,7 @@ import pickle
 import requests
 import random
 
-# ================= API KEYS =================
+# ================= API KEY =================
 TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
 
 # ================= PAGE CONFIG =================
@@ -24,18 +24,28 @@ if "watchlist" not in st.session_state:
 st.markdown("""
 <style>
 .stApp {
-    background: #0f172a;
-    color: #e5e7eb;
+    background-color: #0b1220;
+    color: #f1f5f9;
 }
+
 .card {
-    background: #020617;
-    padding: 14px;
+    background-color: #020617;
+    padding: 12px;
     border-radius: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     border: 1px solid #1e293b;
 }
-h1, h2, h3 {
-    color: #f8fafc;
+
+h1, h2, h3, p, label {
+    color: #f8fafc !important;
+}
+
+div[data-baseweb="select"] span {
+    color: black !important;
+}
+
+input {
+    color: black !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -43,6 +53,7 @@ h1, h2, h3 {
 # ================= LOGIN =================
 if not st.session_state.logged_in:
     st.title("User Login")
+
     email = st.text_input("Email")
     password = st.text_input("Password", type="password")
 
@@ -64,9 +75,13 @@ similarity = pickle.load(open("similarity.pkl", "rb"))
 def recommend(movie, n=5):
     idx = movies[movies['title'] == movie].index[0]
     distances = similarity[idx]
-    return sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:n+1]
+    return sorted(
+        list(enumerate(distances)),
+        reverse=True,
+        key=lambda x: x[1]
+    )[1:n+1]
 
-def poster(movie_id):
+def fetch_poster(movie_id):
     data = requests.get(
         f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
     ).json()
@@ -74,18 +89,14 @@ def poster(movie_id):
         return "https://image.tmdb.org/t/p/w500" + data["poster_path"]
     return None
 
-def trailer(movie_id):
+def fetch_trailer(movie_id):
     data = requests.get(
         f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
     ).json()
 
     for v in data.get("results", []):
         if v["site"] == "YouTube" and v["type"] == "Trailer":
-            key = v["key"]
-            return {
-                "url": f"https://www.youtube.com/watch?v={key}",
-                "thumb": f"https://img.youtube.com/vi/{key}/0.jpg"
-            }
+            return f"https://www.youtube.com/watch?v={v['key']}"
     return None
 
 # ================= SIDEBAR =================
@@ -105,16 +116,16 @@ if st.sidebar.button("Logout"):
 # ================= HOME =================
 if page == "Home":
     st.title("Movie Recommendation System")
-    st.subheader("Content-based movie discovery")
+    st.subheader("Personalized movie discovery using machine learning")
 
     st.markdown("""
     <div class="card">
     <ul>
-        <li>Machine learning based recommendations</li>
-        <li>Trailer preview inside application</li>
-        <li>Mood based suggestions</li>
-        <li>Personal watchlist</li>
-        <li>Email login system</li>
+        <li>Content-based movie recommendations</li>
+        <li>In-app trailer playback</li>
+        <li>Mood-based movie suggestions</li>
+        <li>User watchlist</li>
+        <li>Email-based login</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -123,22 +134,26 @@ if page == "Home":
 elif page == "Recommended":
     st.title("Recommended Movies")
 
-    movie_name = st.selectbox("Select a movie", movies['title'].values)
+    selected_movie = st.selectbox(
+        "Choose a movie",
+        movies['title'].values
+    )
 
     if st.button("Recommend"):
-        results = recommend(movie_name)
+        results = recommend(selected_movie)
         cols = st.columns(5)
 
         for i, r in enumerate(results):
             m = movies.iloc[r[0]]
+
             with cols[i]:
                 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-                p = poster(m.movie_id)
-                t = trailer(m.movie_id)
+                poster = fetch_poster(m.movie_id)
+                trailer = fetch_trailer(m.movie_id)
 
-                if p:
-                    st.image(p, use_container_width=True)
+                if poster:
+                    st.image(poster, use_container_width=True)
 
                 st.write(m.title)
 
@@ -147,9 +162,8 @@ elif page == "Recommended":
                         st.session_state.watchlist.append(m.title)
                         st.success("Added")
 
-                if t:
-                    st.image(t["thumb"], use_container_width=True)
-                    st.video(t["url"])
+                if trailer:
+                    st.video(trailer)
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -159,19 +173,19 @@ elif page == "Surprise Me":
 
     if st.button("Generate"):
         m = movies.sample(1).iloc[0]
-        p = poster(m.movie_id)
-        t = trailer(m.movie_id)
+
+        poster = fetch_poster(m.movie_id)
+        trailer = fetch_trailer(m.movie_id)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-        if p:
-            st.image(p, width=300)
+        if poster:
+            st.image(poster, width=300)
 
         st.write(m.title)
 
-        if t:
-            st.image(t["thumb"], use_container_width=True)
-            st.video(t["url"])
+        if trailer:
+            st.video(trailer)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -187,28 +201,29 @@ elif page == "Recommend by Mood":
         "Romantic": ["romance"]
     }
 
-    mood = st.selectbox("Mood", mood_map.keys())
+    mood = st.selectbox("Select mood", mood_map.keys())
 
     if st.button("Show Movies"):
         keys = mood_map[mood]
-        filtered = movies[movies['tags'].str.contains("|".join(keys), case=False, na=False)]
+        filtered = movies[
+            movies['tags'].str.contains("|".join(keys), case=False, na=False)
+        ]
 
         cols = st.columns(5)
         for i, (_, m) in enumerate(filtered.sample(min(5, len(filtered))).iterrows()):
             with cols[i]:
                 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-                p = poster(m.movie_id)
-                t = trailer(m.movie_id)
+                poster = fetch_poster(m.movie_id)
+                trailer = fetch_trailer(m.movie_id)
 
-                if p:
-                    st.image(p, use_container_width=True)
+                if poster:
+                    st.image(poster, use_container_width=True)
 
                 st.write(m.title)
 
-                if t:
-                    st.image(t["thumb"], use_container_width=True)
-                    st.video(t["url"])
+                if trailer:
+                    st.video(trailer)
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -222,14 +237,15 @@ elif page == "Watchlist":
         cols = st.columns(4)
         for i, title in enumerate(st.session_state.watchlist):
             m = movies[movies['title'] == title].iloc[0]
+
             with cols[i % 4]:
                 st.markdown("<div class='card'>", unsafe_allow_html=True)
 
-                p = poster(m.movie_id)
-                t = trailer(m.movie_id)
+                poster = fetch_poster(m.movie_id)
+                trailer = fetch_trailer(m.movie_id)
 
-                if p:
-                    st.image(p, use_container_width=True)
+                if poster:
+                    st.image(poster, use_container_width=True)
 
                 st.write(title)
 
@@ -237,8 +253,7 @@ elif page == "Watchlist":
                     st.session_state.watchlist.remove(title)
                     st.experimental_rerun()
 
-                if t:
-                    st.image(t["thumb"], use_container_width=True)
-                    st.video(t["url"])
+                if trailer:
+                    st.video(trailer)
 
                 st.markdown("</div>", unsafe_allow_html=True)
