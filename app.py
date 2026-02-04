@@ -139,6 +139,32 @@ def movie_details(movie_id):
     """
     return details
 
+# ---------------- FUNCTION TO DISPLAY MOVIES IN ROWS ----------------
+def display_movies_row(movies_list, key_prefix=""):
+    row_size = 4
+    for i in range(0, len(movies_list), row_size):
+        cols = st.columns(min(row_size, len(movies_list) - i))
+        for j, rec in enumerate(movies_list[i:i+row_size]):
+            if isinstance(rec, tuple):
+                m = movies.iloc[rec[0]]
+            else:
+                m = rec
+            with cols[j]:
+                st.markdown(
+                    f'<div class="movie-card">'
+                    f'<img src="{poster(m.movie_id)}">'
+                    f'<p class="title">{m.title}</p>'
+                    f'{movie_details(m.movie_id)}'
+                    f'</div>', unsafe_allow_html=True)
+                t = trailer(m.movie_id)
+                if t:
+                    if st.button("Watch Trailer", key=f"{key_prefix}_trailer_{i+j}"):
+                        st.video(trailer_url_to_embed(t), format="youtube")
+                if st.button("Add to Watchlist", key=f"{key_prefix}_watchlist_{i+j}"):
+                    if m.title not in st.session_state.watchlist:
+                        st.session_state.watchlist.append(m.title)
+                        st.success(f"{m.title} added to watchlist")
+
 # ---------------- SIDEBAR ----------------
 page = st.sidebar.radio(
     "Navigation",
@@ -161,8 +187,6 @@ if page == "Home":
 elif page == "Recommended":
     st.title("Recommended Movies")
     selected_movie = st.selectbox("Select a movie", movies["title"].values)
-
-    # Input for number of recommendations
     n_recommend = st.number_input("Number of movies to recommend", min_value=1, max_value=20, value=5, step=1)
 
     if selected_movie:
@@ -176,7 +200,6 @@ elif page == "Recommended":
                 f'<p class="title">{selected_movie}</p>'
                 f'{movie_details(movie_row.movie_id)}'
                 f'</div>', unsafe_allow_html=True)
-
             if st.button("Add to Watchlist"):
                 if selected_movie not in st.session_state.watchlist:
                     st.session_state.watchlist.append(selected_movie)
@@ -190,45 +213,13 @@ elif page == "Recommended":
 
         st.subheader("Similar Movies")
         recs = recommend(selected_movie, n=int(n_recommend))
-        cols = st.columns(len(recs))
-        for i, rec in enumerate(recs):
-            m = movies.iloc[rec[0]]
-            with cols[i]:
-                st.markdown(
-                    f'<div class="movie-card">'
-                    f'<img src="{poster(m.movie_id)}">'
-                    f'<p class="title">{m.title}</p>'
-                    f'{movie_details(m.movie_id)}'
-                    f'</div>', unsafe_allow_html=True)
-
-                t = trailer(m.movie_id)
-                if t:
-                    if st.button("Watch Trailer", key=f"trailer_rec_{i}"):
-                        st.video(trailer_url_to_embed(t), format="youtube")
-
-                if st.button("Add to Watchlist", key=f"watchlist_rec_{i}"):
-                    if m.title not in st.session_state.watchlist:
-                        st.session_state.watchlist.append(m.title)
-                        st.success(f"{m.title} added to watchlist")
+        display_movies_row(recs, key_prefix="recommended")
 
 # ---------------- SURPRISE ME ----------------
 elif page == "Surprise Me":
     st.title("Surprise Me")
     movie = movies.sample(1).iloc[0]
-    col1, col2 = st.columns([1,2])
-    with col1:
-        st.markdown(
-            f'<div class="movie-card">'
-            f'<img src="{poster(movie.movie_id)}">'
-            f'<p class="title">{movie.title}</p>'
-            f'{movie_details(movie.movie_id)}'
-            f'</div>', unsafe_allow_html=True)
-    with col2:
-        st.subheader(movie.title)
-        t = trailer(movie.movie_id)
-        if t:
-            if st.button("Watch Trailer", key="trailer_surprise"):
-                st.video(trailer_url_to_embed(t), format="youtube")
+    display_movies_row([movie], key_prefix="surprise")
 
 # ---------------- MOOD ----------------
 elif page == "Recommend by Mood":
@@ -243,20 +234,7 @@ elif page == "Recommend by Mood":
     mood = st.selectbox("Select Mood", mood_map.keys())
     keywords = mood_map[mood]
     filtered = movies[movies["tags"].str.contains("|".join(keywords), case=False, na=False)]
-    sample = filtered.sample(min(5, len(filtered)))
-    cols = st.columns(5)
-    for i, (_, m) in enumerate(sample.iterrows()):
-        with cols[i]:
-            st.markdown(
-                f'<div class="movie-card">'
-                f'<img src="{poster(m.movie_id)}">'
-                f'<p class="title">{m.title}</p>'
-                f'{movie_details(m.movie_id)}'
-                f'</div>', unsafe_allow_html=True)
-            t = trailer(m.movie_id)
-            if t:
-                if st.button("Watch Trailer", key=f"trailer_mood_{i}"):
-                    st.video(trailer_url_to_embed(t), format="youtube")
+    display_movies_row(filtered.sample(min(8, len(filtered))), key_prefix="mood")  # 8 max for 2 rows
 
 # ---------------- THEME ----------------
 elif page == "Theme":
@@ -270,24 +248,7 @@ elif page == "Theme":
     theme = st.selectbox("Select Theme", theme_map.keys())
     keywords = theme_map[theme]
     filtered = movies[movies["tags"].str.contains("|".join(keywords), case=False, na=False)]
-    sample = filtered.sample(min(5, len(filtered)))
-    cols = st.columns(5)
-    for i, (_, m) in enumerate(sample.iterrows()):
-        with cols[i]:
-            st.markdown(
-                f'<div class="movie-card">'
-                f'<img src="{poster(m.movie_id)}">'
-                f'<p class="title">{m.title}</p>'
-                f'{movie_details(m.movie_id)}'
-                f'</div>', unsafe_allow_html=True)
-            t = trailer(m.movie_id)
-            if t:
-                if st.button("Watch Trailer", key=f"theme_trailer_{i}"):
-                    st.video(trailer_url_to_embed(t), format="youtube")
-            if st.button("Add to Watchlist", key=f"theme_watchlist_{i}"):
-                if m.title not in st.session_state.watchlist:
-                    st.session_state.watchlist.append(m.title)
-                    st.success(f"{m.title} added to watchlist")
+    display_movies_row(filtered.sample(min(8, len(filtered))), key_prefix="theme")
 
 # ---------------- WATCHLIST ----------------
 elif page == "Watchlist":
@@ -295,17 +256,5 @@ elif page == "Watchlist":
     if not st.session_state.watchlist:
         st.info("Watchlist is empty")
     else:
-        cols = st.columns(4)
-        for i, title in enumerate(st.session_state.watchlist):
-            m = movies[movies["title"] == title].iloc[0]
-            with cols[i % 4]:
-                st.markdown(
-                    f'<div class="movie-card">'
-                    f'<img src="{poster(m.movie_id)}">'
-                    f'<p class="title">{title}</p>'
-                    f'{movie_details(m.movie_id)}'
-                    f'</div>', unsafe_allow_html=True)
-                t = trailer(m.movie_id)
-                if t:
-                    if st.button("Watch Trailer", key=f"watchlist_trailer_{i}"):
-                        st.video(trailer_url_to_embed(t), format="youtube")
+        watchlist_movies = [movies[movies["title"] == t].iloc[0] for t in st.session_state.watchlist]
+        display_movies_row(watchlist_movies, key_prefix="watchlist")
