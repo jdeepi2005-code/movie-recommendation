@@ -11,11 +11,11 @@ st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = []
 
-# ---------------- PURPLE NETFLIX THEME ----------------
+# ---------------- RED NETFLIX THEME ----------------
 st.markdown("""
 <style>
 .stApp { 
-    background-color:#f3f0f8;  /* light purple background */
+    background-color:#fff0f0;  /* light red background */
     color:#1f1f1f; 
     font-family: 'Arial', sans-serif; 
     font-size:16px; 
@@ -23,7 +23,7 @@ st.markdown("""
 
 /* Card styling for movies */
 .movie-card {
-    background:#d9c9f0;  /* light purple card */
+    background:#ffdddd;  /* pastel red card */
     padding:10px;
     border-radius:15px;
     margin-bottom:20px;
@@ -45,21 +45,27 @@ st.markdown("""
     margin-top:5px;
     font-size:14px;
 }
+.movie-card .details {
+    font-weight:normal;
+    font-size:12px;
+    text-align:left;
+    margin-top:5px;
+}
 
 /* Headings */
 h1,h2,h3,h4,h5,h6 {
-    color:#4b0082;  /* dark purple headings */
+    color:#b30000;  /* dark red headings */
 }
 
 /* Sidebar */
 .css-1d391kg { 
-    background-color:#d9c9f0 !important;  /* purple sidebar */
+    background-color:#ffdddd !important;  /* red sidebar */
     color:#1f1f1f !important;
 }
 
 /* Buttons */
 .stButton>button {
-    background-color:#7b2cbf;  /* purple buttons */
+    background-color:#e50914;  /* Netflix red */
     color:white;
     border-radius:8px;
     padding:0.5em 1em;
@@ -67,7 +73,7 @@ h1,h2,h3,h4,h5,h6 {
     transition: background-color 0.2s;
 }
 .stButton>button:hover {
-    background-color:#5c1a8c;  /* darker purple on hover */
+    background-color:#b00710;  /* darker red on hover */
 }
 </style>
 """, unsafe_allow_html=True)
@@ -104,6 +110,17 @@ def trailer_url_to_embed(url):
         return url.replace("watch?v=", "embed/")
     return url
 
+def movie_details(movie_id):
+    """Fetch movie details from TMDB API"""
+    data = requests.get(
+        f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
+    ).json()
+    title = data.get("title", "")
+    release = data.get("release_date", "N/A")
+    rating = data.get("vote_average", "N/A")
+    overview = data.get("overview", "")
+    return f"**Release:** {release}  \n**Rating:** {rating}  \n**Overview:** {overview}"
+
 # ---------------- SIDEBAR ----------------
 page = st.sidebar.radio(
     "Navigation",
@@ -134,7 +151,12 @@ elif page == "Recommended":
         col1, col2 = st.columns([1,2])
 
         with col1:
-            st.markdown(f'<div class="movie-card"><img src="{poster(movie_row.movie_id)}"><p>{selected_movie}</p></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="movie-card">'
+                f'<img src="{poster(movie_row.movie_id)}">'
+                f'<p>{selected_movie}</p>'
+                f'<p class="details">{movie_details(movie_row.movie_id)}</p>'
+                f'</div>', unsafe_allow_html=True)
 
             if st.button("Add to Watchlist"):
                 if selected_movie not in st.session_state.watchlist:
@@ -153,15 +175,20 @@ elif page == "Recommended":
         for i, rec in enumerate(recs):
             m = movies.iloc[rec[0]]
             with cols[i]:
-                st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="movie-card">'
+                    f'<img src="{poster(m.movie_id)}">'
+                    f'<p>{m.title}</p>'
+                    f'<p class="details">{movie_details(m.movie_id)}</p>'
+                    f'</div>', unsafe_allow_html=True)
 
-                # Trailer inside app with button
+                # Trailer button
                 t = trailer(m.movie_id)
                 if t:
                     if st.button("Watch Trailer", key=f"trailer_rec_{i}"):
                         st.video(trailer_url_to_embed(t), format="youtube")
 
-                # Add to watchlist button
+                # Watchlist button
                 if st.button("Add to Watchlist", key=f"watchlist_rec_{i}"):
                     if m.title not in st.session_state.watchlist:
                         st.session_state.watchlist.append(m.title)
@@ -175,7 +202,12 @@ elif page == "Surprise Me":
 
     col1, col2 = st.columns([1,2])
     with col1:
-        st.markdown(f'<div class="movie-card"><img src="{poster(movie.movie_id)}"><p>{movie.title}</p></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="movie-card">'
+            f'<img src="{poster(movie.movie_id)}">'
+            f'<p>{movie.title}</p>'
+            f'<p class="details">{movie_details(movie.movie_id)}</p>'
+            f'</div>', unsafe_allow_html=True)
     with col2:
         st.subheader(movie.title)
         t = trailer(movie.movie_id)
@@ -204,7 +236,12 @@ elif page == "Recommend by Mood":
     cols = st.columns(5)
     for i, (_, m) in enumerate(sample.iterrows()):
         with cols[i]:
-            st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="movie-card">'
+                f'<img src="{poster(m.movie_id)}">'
+                f'<p>{m.title}</p>'
+                f'<p class="details">{movie_details(m.movie_id)}</p>'
+                f'</div>', unsafe_allow_html=True)
             t = trailer(m.movie_id)
             if t:
                 if st.button("Watch Trailer", key=f"trailer_mood_{i}"):
@@ -230,7 +267,12 @@ elif page == "Theme":
     cols = st.columns(5)
     for i, (_, m) in enumerate(sample.iterrows()):
         with cols[i]:
-            st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{m.title}</p></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="movie-card">'
+                f'<img src="{poster(m.movie_id)}">'
+                f'<p>{m.title}</p>'
+                f'<p class="details">{movie_details(m.movie_id)}</p>'
+                f'</div>', unsafe_allow_html=True)
             
             t = trailer(m.movie_id)
             if t:
@@ -253,7 +295,12 @@ elif page == "Watchlist":
         for i, title in enumerate(st.session_state.watchlist):
             m = movies[movies["title"] == title].iloc[0]
             with cols[i % 4]:
-                st.markdown(f'<div class="movie-card"><img src="{poster(m.movie_id)}"><p>{title}</p></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="movie-card">'
+                    f'<img src="{poster(m.movie_id)}">'
+                    f'<p>{title}</p>'
+                    f'<p class="details">{movie_details(m.movie_id)}</p>'
+                    f'</div>', unsafe_allow_html=True)
                 t = trailer(m.movie_id)
                 if t:
                     if st.button("Watch Trailer", key=f"watchlist_trailer_{i}"):
