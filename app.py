@@ -42,12 +42,11 @@ similarity = pickle.load(open("similarity.pkl", "rb"))
 def recommend(movie, n=5):
     index = movies[movies['title'] == movie].index[0]
     distances = similarity[index]
-    movie_list = sorted(
+    return sorted(
         list(enumerate(distances)),
         reverse=True,
         key=lambda x: x[1]
     )[1:n+1]
-    return movie_list
 
 def fetch_poster(movie_id):
     r = requests.get(
@@ -71,15 +70,14 @@ def fetch_trailer(movie_id):
             return v["key"]
     return None
 
-# ================= SIDEBAR NAV =================
+# ================= SIDEBAR =================
 st.sidebar.title("🎬 Movie App")
-
 page = st.sidebar.radio(
     "Navigate",
     ["🏠 Home", "🎥 Recommended", "🎲 Surprise Me", "😊 Recommend by Mood"]
 )
 
-# ================= HOME PAGE =================
+# ================= HOME =================
 if page == "🏠 Home":
     st.markdown("<h1>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
     st.markdown("<h3>Discover movies you’ll love ❤️</h3>", unsafe_allow_html=True)
@@ -88,15 +86,15 @@ if page == "🏠 Home":
     <div class="card">
     <h4>✨ Features</h4>
     <ul>
-        <li>ML-based recommendations (Content-Based Filtering)</li>
-        <li>Watch movie trailers inside the app</li>
-        <li>Surprise Me – random movie suggestions</li>
-        <li>Mood-based movie discovery</li>
+        <li>Content-based movie recommendations</li>
+        <li>Watch trailers inside the app</li>
+        <li>Surprise Me – random movie discovery</li>
+        <li>Mood-based recommendations</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
 
-# ================= RECOMMENDED PAGE =================
+# ================= RECOMMENDED =================
 elif page == "🎥 Recommended":
     st.markdown("<h2>🎥 Movie Recommendations</h2>", unsafe_allow_html=True)
 
@@ -106,27 +104,39 @@ elif page == "🎥 Recommended":
     )
 
     if st.button("🚀 Recommend"):
-        recommendations = recommend(selected_movie, 5)
+        recs = recommend(selected_movie, 5)
         cols = st.columns(5)
 
-        for i, rec in enumerate(recommendations):
+        for i, rec in enumerate(recs):
             movie_data = movies.iloc[rec[0]]
             poster = fetch_poster(movie_data.movie_id)
             trailer_key = fetch_trailer(movie_data.movie_id)
 
             with cols[i]:
                 st.markdown("<div class='card'>", unsafe_allow_html=True)
+
                 if poster:
                     st.image(poster, use_container_width=True)
+
                 st.markdown(f"**{movie_data.title}**")
+
                 if trailer_key:
-                    st.video(f"https://www.youtube.com/watch?v={trailer_key}")
+                    if st.button("🎬 Watch Trailer", key=f"rec_{movie_data.movie_id}"):
+                        st.markdown(
+                            f"""
+                            <iframe width="100%" height="215"
+                            src="https://www.youtube.com/embed/{trailer_key}"
+                            frameborder="0" allowfullscreen>
+                            </iframe>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
                 st.markdown("</div>", unsafe_allow_html=True)
 
-# ================= SURPRISE ME PAGE =================
+# ================= SURPRISE ME =================
 elif page == "🎲 Surprise Me":
     st.markdown("<h2>🎲 Surprise Me!</h2>", unsafe_allow_html=True)
-    st.markdown("<h4>Feeling lucky? 🎉</h4>", unsafe_allow_html=True)
 
     if st.button("🎁 Surprise Me"):
         movie = movies.sample(1).iloc[0]
@@ -134,14 +144,27 @@ elif page == "🎲 Surprise Me":
         trailer_key = fetch_trailer(movie.movie_id)
 
         st.markdown("<div class='card'>", unsafe_allow_html=True)
+
         if poster:
             st.image(poster, width=300)
+
         st.markdown(f"### 🍿 {movie.title}")
+
         if trailer_key:
-            st.video(f"https://www.youtube.com/watch?v={trailer_key}")
+            if st.button("🎬 Watch Trailer", key=f"surprise_{movie.movie_id}"):
+                st.markdown(
+                    f"""
+                    <iframe width="100%" height="300"
+                    src="https://www.youtube.com/embed/{trailer_key}"
+                    frameborder="0" allowfullscreen>
+                    </iframe>
+                    """,
+                    unsafe_allow_html=True
+                )
+
         st.markdown("</div>", unsafe_allow_html=True)
 
-# ================= MOOD BASED PAGE =================
+# ================= MOOD BASED =================
 elif page == "😊 Recommend by Mood":
     st.markdown("<h2>😊 Mood-Based Recommendation</h2>", unsafe_allow_html=True)
 
@@ -174,9 +197,22 @@ elif page == "😊 Recommend by Mood":
 
                 with cols[i]:
                     st.markdown("<div class='card'>", unsafe_allow_html=True)
+
                     if poster:
                         st.image(poster, use_container_width=True)
+
                     st.markdown(f"**{movie.title}**")
+
                     if trailer_key:
-                        st.video(f"https://www.youtube.com/watch?v={trailer_key}")
+                        if st.button("🎬 Watch Trailer", key=f"mood_{movie.movie_id}"):
+                            st.markdown(
+                                f"""
+                                <iframe width="100%" height="215"
+                                src="https://www.youtube.com/embed/{trailer_key}"
+                                frameborder="0" allowfullscreen>
+                                </iframe>
+                                """,
+                                unsafe_allow_html=True
+                            )
+
                     st.markdown("</div>", unsafe_allow_html=True)
