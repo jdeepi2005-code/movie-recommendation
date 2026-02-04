@@ -1,76 +1,154 @@
 import streamlit as st
 import pickle
-import pandas as pd
+import requests
 
-# Page configuration
-st.set_page_config(
-    page_title="Movie Recommendation System",
-    layout="wide"
-)
+# ================= API KEYS =================
+TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
+OMDB_API_KEY = "8bd965b9"
 
-# Title
-st.title("🎬 Movie Recommendation System")
-st.write("Find movies similar to your favorite one")
+# ================= PAGE CONFIG =================
+st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 
-# Load data
+# ================= SIDEBAR NAV =================
+st.sidebar.title("🎬 Movie App")
+page = st.sidebar.radio("Navigate", ["🏠 Home", "🎥 Recommend", "ℹ️ About"])
+theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
+
+# ================= THEME =================
+if theme == "Dark":
+    st.markdown("""
+    <style>
+    .stApp { background: linear-gradient(135deg,#0f2027,#203a43,#2c5364); color:white; }
+    .card { background:#111827; padding:15px; border-radius:15px;
+            box-shadow:0 10px 25px rgba(0,0,0,.7); margin-bottom:15px; }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    .stApp { background:#f5f7fb; color:black; }
+    .card { background:white; padding:15px; border-radius:15px;
+            box-shadow:0 8px 20px rgba(0,0,0,.15); margin-bottom:15px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ================= LOAD DATA =================
 movies = pickle.load(open("movie_list.pkl", "rb"))
 similarity = pickle.load(open("similarity.pkl", "rb"))
 
-# Sidebar controls
-st.sidebar.header("⚙️ Settings")
-num_recommendations = st.sidebar.slider(
-    "Number of recommendations",
-    min_value=3,
-    max_value=10,
-    value=5
-)
-
-# Recommendation function (same logic, extended)
+# ================= FUNCTIONS =================
 def recommend(movie, n):
     index = movies[movies['title'] == movie].index[0]
     distances = similarity[index]
+    return sorted(list(enumerate(distances)),
+                  reverse=True,
+                  key=lambda x: x[1])[1:n+1]
 
-    movie_list = sorted(
-        list(enumerate(distances)),
-        reverse=True,
-        key=lambda x: x[1]
-    )[1:n+1]
+def fetch_poster(movie_id):
+    r = requests.get(
+        f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
+    )
+    if r.status_code != 200:
+        return None
+    data = r.json()
+    if data.get("poster_path"):
+        return "https://image.tmdb.org/t/p/w500" + data["poster_path"]
+    return None
 
-    return movie_list
+def fetch_omdb(title):
+    return requests.get(
+        f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
+    ).json()
 
-# Search input
-st.subheader("🔍 Search Movie")
-movie_input = st.text_input("Type a movie name")
+def fetch_trailer(movie_id):
+    r = requests.get(
+        f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
+    )
+    if r.status_code != 200:
+        return None
+    data = r.json()
+    for v in data.get("results", []):
+        if v["type"] == "Trailer" and v["site"] == "YouTube":
+            return v["key"]   # IMPORTANT: return ONLY the key
+    return None
 
-# Dropdown fallback
-st.subheader("🎞️ Or select from the list")
-selected_movie = st.selectbox(
-    "Movie list",
-    movies['title'].values
-)
+# ================= HOME PAGE =================
+if page == "🏠 Home":
+    st.markdown("<h1 style='text-align:center;'>🎬 Movie Recommendation System</h1>",
+                unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center;'>Discover Movies You’ll Love ❤️</h3>",
+                unsafe_allow_html=True)
 
-# Decide final movie
-final_movie = movie_input if movie_input in movies['title'].values else selected_movie
+    st.markdown("""
+    <div class="card">
+    <h4>✨ Features</h4>
+    <ul>
+        <li>ML-based personalized recommendations</li>
+        <li>Movie posters, IMDb ratings & genres</li>
+        <li>In-app trailer playback</li>
+        <li>Light & Dark theme support</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.success(f"You selected: **{final_movie}**")
+# ================= RECOMMEND PAGE =================
+elif page == "🎥 Recommend":
+    st.markdown("<h2>🎥 Movie Recommendations</h2>", unsafe_allow_html=True)
 
-# Recommend button
-if st.button("Recommend 🎯"):
-    try:
-        with st.spinner("Finding similar movies..."):
-            recommendations = recommend(final_movie, num_recommendations)
+    movie = st.selectbox("Select a Movie", movies['title'].values)
+    n = st.slider("Number of Recommendations", 3, 10, 5)
 
-        st.subheader("📌 Recommended Movies")
-
+    if st.button("🚀 Recommend"):
+        recs = recommend(movie, n)
         cols = st.columns(5)
-        for idx, rec in enumerate(recommendations):
-            with cols[idx % 5]:
-                st.markdown(
-                    f"""
-                    🎬 **{movies.iloc[rec[0]].title}**  
-                    ⭐ Similarity: `{round(rec[1], 2)}`
-                    """
-                )
 
-    except Exception as e:
-        st.error("❌ Recommendation failed. Please try another movie.")
+        for idx, rec in enumerate(recs):
+            m = movies.iloc[rec[0]]
+            poster = fetch_poster(m.movie_id)
+            omdb = fetch_omdb(m.title)
+            trailer_key = fetch_trailer(m.movie_id)
+
+            with cols[idx % 5]:
+                st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+                if poster:
+                    st.image(poster, use_container_width=True)
+
+                st.markdown(f"**{m.title}**")
+                st.caption(f"⭐ IMDb: {omdb.get('imdbRating','N/A')}")
+                st.caption(f"🎭 Genre: {omdb.get('Genre','N/A')}")
+
+                if trailer_key:
+                    if st.button("🎬 Watch Trailer",
+                                 key=f"trailer_{m.movie_id}"):
+                        st.markdown(
+                            f"""
+                            <iframe width="100%" height="215"
+                            src="https://www.youtube.com/embed/{trailer_key}"
+                            frameborder="0" allowfullscreen>
+                            </iframe>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+# ================= ABOUT PAGE =================
+elif page == "ℹ️ About":
+    st.markdown("<h2>ℹ️ About This Project</h2>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="card">
+    <p>
+    This Movie Recommendation System uses
+    <b>Content-Based Filtering</b> and
+    <b>Cosine Similarity</b> to recommend movies.
+    </p>
+
+    <p><b>Technologies Used:</b></p>
+    <ul>
+        <li>Python & Streamlit</li>
+        <li>Machine Learning</li>
+        <li>TMDB & OMDB APIs</li>
+    </ul>
+    </div>
+    """, unsafe_allow_html=True)
