@@ -8,56 +8,46 @@ TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
 OMDB_API_KEY = "8bd965b9"
 
 # ================= PAGE CONFIG =================
-st.set_page_config(page_title="Movie Recommendation System", layout="wide")
+st.set_page_config(
+    page_title="Movie Recommendation System",
+    page_icon="🎬",
+    layout="wide"
+)
 
-# ================= SESSION STATE =================
-if "watchlist" not in st.session_state:
-    st.session_state.watchlist = []
-
-# ================= SIDEBAR NAV =================
-st.sidebar.title("🎬 Movie App")
-page = st.sidebar.radio("Navigate", ["🏠 Home", "🎥 Recommend", "📌 Watchlist", "ℹ️ About"])
-theme = st.sidebar.radio("🎨 Theme", ["Light", "Dark"])
-
-# ================= THEME =================
-if theme == "Dark":
-    st.markdown("""
-    <style>
-    .stApp { background: linear-gradient(135deg,#0f2027,#203a43,#2c5364); color:white; }
-    .card {
-        background:#111827;
-        padding:15px;
-        border-radius:15px;
-        box-shadow:0 10px 25px rgba(0,0,0,.7);
-        margin-bottom:15px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <style>
-    .stApp { background:#f5f7fb; color:black; }
-    .card {
-        background:white;
-        padding:15px;
-        border-radius:15px;
-        box-shadow:0 8px 20px rgba(0,0,0,.15);
-        margin-bottom:15px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# ================= CUSTOM CSS =================
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg,#141e30,#243b55);
+    color: white;
+}
+.card {
+    background: #111827;
+    padding: 15px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,.6);
+    margin-bottom: 15px;
+}
+h1, h2, h3 {
+    text-align: center;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ================= LOAD DATA =================
 movies = pickle.load(open("movie_list.pkl", "rb"))
 similarity = pickle.load(open("similarity.pkl", "rb"))
 
 # ================= FUNCTIONS =================
-def recommend(movie, n):
+def recommend(movie, n=5):
     index = movies[movies['title'] == movie].index[0]
     distances = similarity[index]
-    return sorted(list(enumerate(distances)),
-                  reverse=True,
-                  key=lambda x: x[1])[1:n+1]
+    movie_list = sorted(
+        list(enumerate(distances)),
+        reverse=True,
+        key=lambda x: x[1]
+    )[1:n+1]
+    return movie_list
 
 def fetch_poster(movie_id):
     r = requests.get(
@@ -70,142 +60,123 @@ def fetch_poster(movie_id):
         return "https://image.tmdb.org/t/p/w500" + data["poster_path"]
     return None
 
-def fetch_omdb(title):
-    return requests.get(
-        f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}"
-    ).json()
-
 def fetch_trailer(movie_id):
     r = requests.get(
         f"https://api.themoviedb.org/3/movie/{movie_id}/videos?api_key={TMDB_API_KEY}"
     )
     if r.status_code != 200:
         return None
-    data = r.json()
-    for v in data.get("results", []):
+    for v in r.json().get("results", []):
         if v["type"] == "Trailer" and v["site"] == "YouTube":
             return v["key"]
     return None
 
+# ================= SIDEBAR NAV =================
+st.sidebar.title("🎬 Movie App")
+
+page = st.sidebar.radio(
+    "Navigate",
+    ["🏠 Home", "🎥 Recommended", "🎲 Surprise Me", "😊 Recommend by Mood"]
+)
+
 # ================= HOME PAGE =================
 if page == "🏠 Home":
-    st.markdown("<h1 style='text-align:center;'>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align:center;'>Discover Movies You’ll Love ❤️</h3>", unsafe_allow_html=True)
+    st.markdown("<h1>🎬 Movie Recommendation System</h1>", unsafe_allow_html=True)
+    st.markdown("<h3>Discover movies you’ll love ❤️</h3>", unsafe_allow_html=True)
 
     st.markdown("""
     <div class="card">
     <h4>✨ Features</h4>
     <ul>
-        <li>ML-based personalized recommendations</li>
-        <li>Movie posters, IMDb ratings & trailers</li>
-        <li>Surprise Me & Mood-based recommendations</li>
-        <li>Personal Watchlist</li>
-        <li>Clean & responsive UI</li>
+        <li>ML-based recommendations (Content-Based Filtering)</li>
+        <li>Watch movie trailers inside the app</li>
+        <li>Surprise Me – random movie suggestions</li>
+        <li>Mood-based movie discovery</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
 
-# ================= RECOMMEND PAGE =================
-elif page == "🎥 Recommend":
+# ================= RECOMMENDED PAGE =================
+elif page == "🎥 Recommended":
     st.markdown("<h2>🎥 Movie Recommendations</h2>", unsafe_allow_html=True)
 
-    movie = st.selectbox("Select a Movie", movies['title'].values)
-    n = st.slider("Number of Recommendations", 3, 10, 5)
-
-    # -------- Surprise Me --------
-    if st.button("🎲 Surprise Me"):
-        movie = random.choice(movies['title'].values)
-        st.success(f"🎬 Surprise Pick: {movie}")
-
-    # -------- Mood Based --------
-    st.markdown("### 😊 Mood-Based Recommendation")
-    mood = st.selectbox(
-        "Select your mood",
-        ["Happy 😄", "Romantic ❤️", "Thriller 😈", "Sad 😢", "Inspirational 🌟"]
+    selected_movie = st.selectbox(
+        "Choose a movie",
+        movies['title'].values
     )
 
-    mood_map = {
-        "Happy 😄": ["Comedy", "Adventure"],
-        "Romantic ❤️": ["Romance"],
-        "Thriller 😈": ["Thriller", "Action"],
-        "Sad 😢": ["Drama"],
-        "Inspirational 🌟": ["Biography"]
-    }
-
-    if st.button("😊 Recommend by Mood"):
-        genres = mood_map[mood]
-        mood_movies = movies[
-            movies['genres'].str.contains("|".join(genres), case=False, na=False)
-        ]
-        for title in mood_movies['title'].head(5):
-            st.write("🎬", title)
-
-    # -------- Main Recommendation --------
     if st.button("🚀 Recommend"):
-        recs = recommend(movie, n)
+        recommendations = recommend(selected_movie, 5)
         cols = st.columns(5)
 
-        for idx, rec in enumerate(recs):
-            m = movies.iloc[rec[0]]
-            poster = fetch_poster(m.movie_id)
-            omdb = fetch_omdb(m.title)
-            trailer_key = fetch_trailer(m.movie_id)
+        for i, rec in enumerate(recommendations):
+            movie_data = movies.iloc[rec[0]]
+            poster = fetch_poster(movie_data.movie_id)
+            trailer_key = fetch_trailer(movie_data.movie_id)
 
-            with cols[idx % 5]:
+            with cols[i]:
                 st.markdown("<div class='card'>", unsafe_allow_html=True)
-
                 if poster:
                     st.image(poster, use_container_width=True)
-
-                st.markdown(f"**{m.title}**")
-                st.caption(f"⭐ IMDb: {omdb.get('imdbRating','N/A')}")
-                st.caption(f"🎭 Genre: {omdb.get('Genre','N/A')}")
-
+                st.markdown(f"**{movie_data.title}**")
                 if trailer_key:
-                    if st.button("🎬 Watch Trailer", key=f"trailer_{m.movie_id}"):
-                        st.markdown(
-                            f"""
-                            <iframe width="100%" height="215"
-                            src="https://www.youtube.com/embed/{trailer_key}"
-                            frameborder="0" allowfullscreen>
-                            </iframe>
-                            """,
-                            unsafe_allow_html=True
-                        )
-
-                if st.button("❤️ Add to Watchlist", key=f"watch_{m.movie_id}"):
-                    if m.title not in st.session_state.watchlist:
-                        st.session_state.watchlist.append(m.title)
-                        st.success("Added to Watchlist!")
-
+                    st.video(f"https://www.youtube.com/watch?v={trailer_key}")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-# ================= WATCHLIST PAGE =================
-elif page == "📌 Watchlist":
-    st.markdown("<h2>📌 My Watchlist</h2>", unsafe_allow_html=True)
+# ================= SURPRISE ME PAGE =================
+elif page == "🎲 Surprise Me":
+    st.markdown("<h2>🎲 Surprise Me!</h2>", unsafe_allow_html=True)
+    st.markdown("<h4>Feeling lucky? 🎉</h4>", unsafe_allow_html=True)
 
-    if st.session_state.watchlist:
-        for w in st.session_state.watchlist:
-            st.write("🎬", w)
-    else:
-        st.info("Your watchlist is empty.")
+    if st.button("🎁 Surprise Me"):
+        movie = movies.sample(1).iloc[0]
+        poster = fetch_poster(movie.movie_id)
+        trailer_key = fetch_trailer(movie.movie_id)
 
-# ================= ABOUT PAGE =================
-elif page == "ℹ️ About":
-    st.markdown("<h2>ℹ️ About This Project</h2>", unsafe_allow_html=True)
-    st.markdown("""
-    <div class="card">
-    <p>
-    This Movie Recommendation System uses
-    <b>Content-Based Filtering</b> and
-    <b>Cosine Similarity</b> to suggest movies.
-    </p>
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        if poster:
+            st.image(poster, width=300)
+        st.markdown(f"### 🍿 {movie.title}")
+        if trailer_key:
+            st.video(f"https://www.youtube.com/watch?v={trailer_key}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    <p><b>Technologies Used:</b></p>
-    <ul>
-        <li>Python & Streamlit</li>
-        <li>Machine Learning</li>
-        <li>TMDB & OMDB APIs</li>
-    </ul>
-    </div>
-    """, unsafe_allow_html=True)
+# ================= MOOD BASED PAGE =================
+elif page == "😊 Recommend by Mood":
+    st.markdown("<h2>😊 Mood-Based Recommendation</h2>", unsafe_allow_html=True)
+
+    mood_map = {
+        "Romantic ❤️": ["romance", "love"],
+        "Happy 😄": ["comedy", "fun"],
+        "Sad 😢": ["drama"],
+        "Excited 🤩": ["action", "thriller"],
+        "Relaxed 😌": ["family", "animation"]
+    }
+
+    mood = st.selectbox("Select your mood", list(mood_map.keys()))
+
+    if st.button("😊 Recommend by Mood"):
+        keywords = mood_map[mood]
+
+        mood_movies = movies[
+            movies['tags'].str.contains("|".join(keywords), case=False, na=False)
+        ]
+
+        if mood_movies.empty:
+            st.warning("No movies found for this mood.")
+        else:
+            sample_movies = mood_movies.sample(min(5, len(mood_movies)))
+            cols = st.columns(5)
+
+            for i, (_, movie) in enumerate(sample_movies.iterrows()):
+                poster = fetch_poster(movie.movie_id)
+                trailer_key = fetch_trailer(movie.movie_id)
+
+                with cols[i]:
+                    st.markdown("<div class='card'>", unsafe_allow_html=True)
+                    if poster:
+                        st.image(poster, use_container_width=True)
+                    st.markdown(f"**{movie.title}**")
+                    if trailer_key:
+                        st.video(f"https://www.youtube.com/watch?v={trailer_key}")
+                    st.markdown("</div>", unsafe_allow_html=True)
