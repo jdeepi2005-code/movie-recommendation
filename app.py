@@ -47,7 +47,7 @@ st.markdown("""
 }
 .movie-card .details {
     font-weight:normal;
-    font-size:12px;
+    font-size:13px;
     text-align:left;
     margin-top:5px;
 }
@@ -111,15 +111,23 @@ def trailer_url_to_embed(url):
     return url
 
 def movie_details(movie_id):
-    """Fetch movie details from TMDB API"""
+    """Fetch movie details and format neatly for display"""
     data = requests.get(
         f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}"
     ).json()
-    title = data.get("title", "")
     release = data.get("release_date", "N/A")
     rating = data.get("vote_average", "N/A")
-    overview = data.get("overview", "")
-    return f"**Release:** {release}  \n**Rating:** {rating}  \n**Overview:** {overview}"
+    overview = data.get("overview", "No overview available")
+
+    # Ordered details
+    details = f"""
+    <div class="details">
+        <strong>Release:</strong> {release} <br>
+        <strong>Rating:</strong> {rating} <br>
+        <strong>Overview:</strong> {overview}
+    </div>
+    """
+    return details
 
 # ---------------- SIDEBAR ----------------
 page = st.sidebar.radio(
@@ -155,7 +163,7 @@ elif page == "Recommended":
                 f'<div class="movie-card">'
                 f'<img src="{poster(movie_row.movie_id)}">'
                 f'<p>{selected_movie}</p>'
-                f'<p class="details">{movie_details(movie_row.movie_id)}</p>'
+                f'{movie_details(movie_row.movie_id)}'
                 f'</div>', unsafe_allow_html=True)
 
             if st.button("Add to Watchlist"):
@@ -179,7 +187,7 @@ elif page == "Recommended":
                     f'<div class="movie-card">'
                     f'<img src="{poster(m.movie_id)}">'
                     f'<p>{m.title}</p>'
-                    f'<p class="details">{movie_details(m.movie_id)}</p>'
+                    f'{movie_details(m.movie_id)}'
                     f'</div>', unsafe_allow_html=True)
 
                 # Trailer button
@@ -206,7 +214,7 @@ elif page == "Surprise Me":
             f'<div class="movie-card">'
             f'<img src="{poster(movie.movie_id)}">'
             f'<p>{movie.title}</p>'
-            f'<p class="details">{movie_details(movie.movie_id)}</p>'
+            f'{movie_details(movie.movie_id)}'
             f'</div>', unsafe_allow_html=True)
     with col2:
         st.subheader(movie.title)
@@ -240,7 +248,7 @@ elif page == "Recommend by Mood":
                 f'<div class="movie-card">'
                 f'<img src="{poster(m.movie_id)}">'
                 f'<p>{m.title}</p>'
-                f'<p class="details">{movie_details(m.movie_id)}</p>'
+                f'{movie_details(m.movie_id)}'
                 f'</div>', unsafe_allow_html=True)
             t = trailer(m.movie_id)
             if t:
@@ -271,7 +279,7 @@ elif page == "Theme":
                 f'<div class="movie-card">'
                 f'<img src="{poster(m.movie_id)}">'
                 f'<p>{m.title}</p>'
-                f'<p class="details">{movie_details(m.movie_id)}</p>'
+                f'{movie_details(m.movie_id)}'
                 f'</div>', unsafe_allow_html=True)
             
             t = trailer(m.movie_id)
@@ -299,7 +307,7 @@ elif page == "Watchlist":
                     f'<div class="movie-card">'
                     f'<img src="{poster(m.movie_id)}">'
                     f'<p>{title}</p>'
-                    f'<p class="details">{movie_details(m.movie_id)}</p>'
+                    f'{movie_details(m.movie_id)}'
                     f'</div>', unsafe_allow_html=True)
                 t = trailer(m.movie_id)
                 if t:
