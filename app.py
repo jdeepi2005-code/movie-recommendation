@@ -8,9 +8,6 @@ TMDB_API_KEY = "c8ce383e8670e6d52aaa745448b33712"
 st.set_page_config(page_title="Movie Recommendation System", layout="wide")
 
 # ---------------- SESSION STATE ----------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = []
 
@@ -34,22 +31,6 @@ h1,h2,h3,h4,h5,h6, p, label, div, span {
 }
 </style>
 """, unsafe_allow_html=True)
-
-# ---------------- LOGIN ----------------
-if not st.session_state.logged_in:
-    st.title("Login")
-
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if "@" in email and password:
-            st.session_state.logged_in = True
-            st.experimental_rerun()
-        else:
-            st.error("Enter valid email and password")
-
-    st.stop()
 
 # ---------------- LOAD DATA ----------------
 movies = pickle.load(open("movie_list.pkl", "rb"))
@@ -114,14 +95,17 @@ elif page == "Recommended":
                     st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
 
         st.subheader("Similar Movies")
-        cols = st.columns(5)
-
         recs = recommend(selected_movie)
+        cols = st.columns(len(recs))
         for i, rec in enumerate(recs):
             m = movies.iloc[rec[0]]
             with cols[i]:
                 st.image(poster(m.movie_id), use_container_width=True)
                 st.caption(m.title)
+                t = trailer(m.movie_id)
+                if t:
+                    if st.button(f"Watch Trailer: {m.title}", key=f"trailer_{i}"):
+                        st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
 
 # ---------------- SURPRISE ME ----------------
 elif page == "Surprise Me":
@@ -162,6 +146,10 @@ elif page == "Recommend by Mood":
         with cols[i]:
             st.image(poster(m.movie_id), use_container_width=True)
             st.caption(m.title)
+            t = trailer(m.movie_id)
+            if t:
+                if st.button(f"Watch Trailer: {m.title}", key=f"mood_{i}"):
+                    st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
 
 # ---------------- WATCHLIST ----------------
 elif page == "Watchlist":
@@ -176,3 +164,7 @@ elif page == "Watchlist":
             with cols[i % 4]:
                 st.image(poster(m.movie_id), use_container_width=True)
                 st.caption(title)
+                t = trailer(m.movie_id)
+                if t:
+                    if st.button(f"Watch Trailer: {m.title}", key=f"watchlist_{i}"):
+                        st.markdown(f"[Click here to watch trailer]({t})", unsafe_allow_html=True)
